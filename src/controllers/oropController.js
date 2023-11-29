@@ -19,19 +19,23 @@ export const getOneOrop = async (req, res) => {
     try {
         const { query } = req;
         if (!query) {
-            console.warn('No query param in request for FP OROP');
+            console.warn('[getOneOrop] No query param in request for FP OROP');
             return res.status(400).json('Missing query param');
         }
         const { title } = query;
         const orop = await Orop.findOne({ title });
         if (orop) {
-            console.log('GET ONE OROP : found ', orop.fpOrop);
+            await Orop.updateOne(
+                { _id: orop._id },
+                { $inc: { searchCount: 1 } }
+            );
+            console.log('[getOneOrop] Search incrementation for OROP:', title);
             return res.status(200).json(orop.fpOrop);
         }
-        console.warn('No Orop found with query', query);
+        console.warn('[getOneOrop] No Orop found with query', query);
         return res.status(404).json(`No OROP found with query ${query.title}`);
     } catch (error) {
-        console.warn('OROP Not found', error);
+        console.warn('[getOneOrop] OROP Not found', error);
         return res.status(404).json(`No OROP found ${error}`);
     }
 };
@@ -41,10 +45,10 @@ export const upsertFpOrop = async (req, res) => {
         const { body } = req;
         // omit the title from the body as we want to apply "$addToSet" to enforce uniqueness
         const bodyWithoutTitle = omit(body, 'title');
-        if (!body.title || !isValidFpOrop(body.fpOrop)) {
-            console.warn('Bad Request', {
-                title: body.title,
-                fpOrop: body.fpOrop,
+        if (!body?.title || !isValidFpOrop(body?.fpOrop)) {
+            console.warn('[upsertFpOrop] Bad Request', {
+                title: body?.title,
+                fpOrop: body?.fpOrop,
             });
             return res
                 .status(400)
@@ -64,9 +68,69 @@ export const upsertFpOrop = async (req, res) => {
             },
             { new: true, upsert: true }
         );
-        console.log('UPSERT SUCESS : ', orop.title);
+        console.log('[upsertFpOrop] Success: ', orop.title);
         return res.status(200).json(orop);
     } catch (error) {
         return res.status(400).json(`Impossible to upsert OROP. ${error}`);
     }
+};
+
+export const upsertDiscordOrop = async (req, res) => {
+    try {
+        const { body } = req;
+        const { title, userId, rating } = body;
+        if (!title || !userId || !rating) {
+            console.warn('[upsertDiscordOrop] Bad request', {
+                title,
+                userId,
+                rating,
+            });
+            return res
+                .status(400)
+                .json(`Missing required field (title, userId, rating)`);
+        }
+
+        // Replace rating if already rated
+        const orop = await Orop.findOneAndUpdate(
+            { title, 'discordOrop.ratings.userId': userId },
+            {
+                $set: { 'discordOrop.ratings.$.rating': rating },
+                $addToSet: { title: body.title?.toLowerCase() },
+            },
+            { new: true }
+        );
+        // Try to insert new rating if existing Orop
+        if (!orop) {
+            const newRatingOrop = await Orop.findOneAndUpdate(
+                { title },
+                {
+                    $push: { 'discordOrop.ratings': { userId, rating } },
+                },
+                { new: true }
+            );
+            // return 404 if no orop found
+            if (!newRatingOrop) {
+                console.warn('[upsertDiscordOrop] No OROP found', {
+                    title,
+                    userId,
+                    rating,
+                });
+                return res
+                    .status(404)
+                    .json(`No OROP found with title ${title}`);
+            }
+            console.log('[upsertDiscordOrop] New Rating Success', {
+                orop: newRatingOrop,
+                updated: false,
+            });
+            return res
+                .status(200)
+                .json({ orop: newRatingOrop, updated: false });
+        }
+        console.log('[upsertDiscordOrop] Rating modified', {
+            orop,
+            updated: true,
+        });
+        return res.status(200).json({ orop, updated: true });
+    } catch (error) {}
 };

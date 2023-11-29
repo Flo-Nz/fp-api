@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import { port, mongoDbUri } from './config/config.js';
 import router from './router.js';
 import 'dotenv/config';
 import sanitize from 'sanitize';
@@ -15,7 +14,7 @@ app.use(cors());
 app.use(express.json());
 app.use(sanitize.middleware);
 
-// Define your routes here
+// Router
 app.use('/', router);
 
 // Start function

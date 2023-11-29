@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
     getAllOrop,
     getOneOrop,
+    upsertDiscordOrop,
     upsertFpOrop,
 } from './controllers/oropController.js';
 import { validateApiKey } from './services/validateApiKey.js';
@@ -15,5 +16,6 @@ router.get('/', (req, res) => {
 router.get('/orop', validateApiKey, getOneOrop);
 router.get('/orop/all', validateApiKey, getAllOrop);
 router.post('/fporop', validateApiKey, upsertFpOrop);
+router.post('/discordorop', validateApiKey, upsertDiscordOrop);
 
 export default router;

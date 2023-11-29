@@ -27,6 +27,9 @@ const OropSchema = new mongoose.Schema({
     discordOrop: {
         type: DiscordOropSchema,
         description: 'Discord community rating',
+        default: {
+            ratings: [],
+        },
     },
     searchCount: { type: Number, default: 0 },
 });
