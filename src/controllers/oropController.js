@@ -1,4 +1,4 @@
-import { isEmpty, omit } from 'lodash-es';
+import { get, keys, map, omit } from 'lodash-es';
 import { Orop } from '../models/Orop.js';
 import { isValidFpOrop } from '../services/validateOrop.js';
 
@@ -56,13 +56,20 @@ export const upsertFpOrop = async (req, res) => {
                     `Missing required field (title, fpOrop youtubeUrl,thumbnail,publishedDate,videoTitle)`
                 );
         }
-
+        const { fpOrop } = bodyWithoutTitle;
+        const fpOropKeys = map(keys(fpOrop), (key) => `fpOrop.${key}`);
+        const fpOropMongoSet = {};
+        for (const key of fpOropKeys) {
+            fpOropMongoSet[key] = get(bodyWithoutTitle, key);
+        }
         const orop = await Orop.findOneAndUpdate(
             {
                 'fpOrop.youtubeUrl': body.fpOrop?.youtubeUrl,
             },
             {
-                ...bodyWithoutTitle,
+                $set: {
+                    ...fpOropMongoSet,
+                },
                 $addToSet: { title: body.title?.toLowerCase() },
                 $inc: { searchCount: 1 },
             },
@@ -110,14 +117,21 @@ export const upsertDiscordOrop = async (req, res) => {
             );
             // return 404 if no orop found
             if (!newRatingOrop) {
-                console.warn('[upsertDiscordOrop] No OROP found', {
+                console.log(
+                    '[upsertDiscordOrop] No OROP found, inserting new one',
+                    title
+                );
+                const newDiscordOrop = await Orop.create({
                     title,
-                    userId,
-                    rating,
+                    fpOrop: {},
+                    discordOrop: { ratings: [{ userId, rating }] },
+                    searchCount: 1,
                 });
-                return res
-                    .status(404)
-                    .json(`No OROP found with title ${title}`);
+                return res.status(200).json({
+                    orop: newDiscordOrop,
+                    updated: false,
+                    created: true,
+                });
             }
             console.log('[upsertDiscordOrop] New Rating Success', {
                 orop: newRatingOrop,
@@ -132,5 +146,7 @@ export const upsertDiscordOrop = async (req, res) => {
             updated: true,
         });
         return res.status(200).json({ orop, updated: true });
-    } catch (error) {}
+    } catch (error) {
+        return res.status(500).json(error.message);
+    }
 };

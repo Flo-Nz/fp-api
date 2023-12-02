@@ -1,3 +1,4 @@
+import { meanBy, round } from 'lodash-es';
 import mongoose from 'mongoose';
 
 const FpOropSchema = new mongoose.Schema(
@@ -18,20 +19,37 @@ const DiscordOropSchema = new mongoose.Schema(
     { _id: false }
 );
 
-const OropSchema = new mongoose.Schema({
-    title: [{ type: String, required: true }],
-    fpOrop: {
-        type: FpOropSchema,
-        description: "FirstPlayer's orop and rating",
-    },
-    discordOrop: {
-        type: DiscordOropSchema,
-        description: 'Discord community rating',
-        default: {
-            ratings: [],
+const OropSchema = new mongoose.Schema(
+    {
+        title: [{ type: String, required: true }],
+        fpOrop: {
+            type: FpOropSchema,
+            description: "FirstPlayer's orop and rating",
         },
+        discordOrop: {
+            type: DiscordOropSchema,
+            description: 'Discord community rating',
+            default: {
+                ratings: [],
+            },
+        },
+        searchCount: { type: Number, default: 0 },
     },
-    searchCount: { type: Number, default: 0 },
-});
+    {
+        virtuals: {
+            discordRating: {
+                get() {
+                    return round(meanBy(this.discordOrop.ratings, 'rating'));
+                },
+            },
+        },
+        toObject: {
+            virtuals: true,
+        },
+        toJSON: {
+            virtuals: true,
+        },
+    }
+);
 
 export const Orop = mongoose.model('Orop', OropSchema);
