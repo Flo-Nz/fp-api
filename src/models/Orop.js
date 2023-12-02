@@ -39,7 +39,10 @@ const OropSchema = new mongoose.Schema(
         virtuals: {
             discordRating: {
                 get() {
-                    return round(meanBy(this.discordOrop.ratings, 'rating'));
+                    return (
+                        round(meanBy(this.discordOrop?.ratings, 'rating')) ||
+                        null
+                    );
                 },
             },
         },

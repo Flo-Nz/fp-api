@@ -15,6 +15,65 @@ export const getAllOrop = async (req, res) => {
     }
 };
 
+export const getTopSearchedOrop = async (req, res) => {
+    try {
+        const { query: params } = req;
+        const { limit, withoutVideo } = params;
+        const query =
+            withoutVideo === 'true'
+                ? { 'fpOrop.youtubeUrl': { $exists: false } }
+                : {};
+        const topSearchedOrop = await Orop.find(query, null, {
+            sort: { searchCount: -1 },
+            limit: limit && limit <= 30 ? limit : 10,
+        });
+        console.log('[getTopSearchedOrop] returning top with params: ', {
+            limit,
+            withoutVideo,
+        });
+        return res.status(200).json(topSearchedOrop);
+    } catch (error) {
+        res.status(500).json(`Something went wrong during getTopOrop ${error}`);
+    }
+};
+
+export const getTopRatedOrop = async (req, res) => {
+    try {
+        const { query: params } = req;
+        const { limit, onlyFP } = params;
+        if (onlyFP === 'true') {
+            const topFpRatedOrop = await Orop.find(
+                { 'fpOrop.rating': { $exists: true } },
+                null,
+                {
+                    sort: { 'fpOrop.rating': -1 },
+                    limit: limit && limit <= 30 ? limit : 10,
+                }
+            );
+            console.log('[getTopRatedOrop] returning FP TOP');
+            return res.status(200).json(topFpRatedOrop);
+        }
+        const topRatedOrop = await Orop.find(
+            { 'discordOrop.ratings': { $exists: true, $not: { $size: 0 } } },
+            null,
+            {
+                limit: limit && limit <= 30 ? limit : 10,
+            }
+        );
+
+        const sortedTopRatedOrop = topRatedOrop
+            .sort((a, b) => a?.discordRating - b?.discordRating)
+            .reverse();
+
+        console.log('[getTopRateOrop] returning DISCORD TOP');
+        return res.status(200).json(sortedTopRatedOrop);
+    } catch (error) {
+        res.status(500).json(
+            `Something went wrong during getTopRatedOrop ${error}`
+        );
+    }
+};
+
 export const getOneOrop = async (req, res) => {
     try {
         const { query } = req;
@@ -82,6 +141,24 @@ export const upsertFpOrop = async (req, res) => {
     }
 };
 
+export const upsertFpOropRating = async (req, res) => {
+    try {
+        const { body } = req;
+        const { title, rating } = body;
+        if (!title || !rating) {
+            return res.status(400).json(`Missing title or rating`);
+        }
+        const orop = await Orop.findOneAndUpdate(
+            { title },
+            { $set: { 'fpOrop.rating': parseInt(rating) } },
+            { new: true, upsert: true }
+        );
+        return res.status(200).json(orop);
+    } catch (error) {
+        return res.status(500).json('Something went wrong.');
+    }
+};
+
 export const upsertDiscordOrop = async (req, res) => {
     try {
         const { body } = req;
@@ -106,33 +183,22 @@ export const upsertDiscordOrop = async (req, res) => {
             },
             { new: true }
         );
+        if (orop) {
+            console.log('[upsertDiscordOrop] Rating modified', {
+                orop,
+                updated: true,
+            });
+            return res.status(200).json({ orop, updated: true });
+        }
         // Try to insert new rating if existing Orop
-        if (!orop) {
-            const newRatingOrop = await Orop.findOneAndUpdate(
-                { title },
-                {
-                    $push: { 'discordOrop.ratings': { userId, rating } },
-                },
-                { new: true }
-            );
-            // return 404 if no orop found
-            if (!newRatingOrop) {
-                console.log(
-                    '[upsertDiscordOrop] No OROP found, inserting new one',
-                    title
-                );
-                const newDiscordOrop = await Orop.create({
-                    title,
-                    fpOrop: {},
-                    discordOrop: { ratings: [{ userId, rating }] },
-                    searchCount: 1,
-                });
-                return res.status(200).json({
-                    orop: newDiscordOrop,
-                    updated: false,
-                    created: true,
-                });
-            }
+        const newRatingOrop = await Orop.findOneAndUpdate(
+            { title },
+            {
+                $push: { 'discordOrop.ratings': { userId, rating } },
+            },
+            { new: true }
+        );
+        if (newRatingOrop) {
             console.log('[upsertDiscordOrop] New Rating Success', {
                 orop: newRatingOrop,
                 updated: false,
@@ -141,11 +207,26 @@ export const upsertDiscordOrop = async (req, res) => {
                 .status(200)
                 .json({ orop: newRatingOrop, updated: false });
         }
-        console.log('[upsertDiscordOrop] Rating modified', {
-            orop,
-            updated: true,
+
+        // If no OROP found, insert new one with the user's rating
+        const newDiscordOrop = await Orop.create({
+            title,
+            fpOrop: {},
+            discordOrop: { ratings: [{ userId, rating }] },
+            searchCount: 1,
         });
-        return res.status(200).json({ orop, updated: true });
+        if (newDiscordOrop) {
+            console.log(
+                '[upsertDiscordOrop] No OROP found, inserting new one',
+                title
+            );
+            return res.status(200).json({
+                orop: newDiscordOrop,
+                updated: false,
+                created: true,
+            });
+        }
+        return;
     } catch (error) {
         return res.status(500).json(error.message);
     }
