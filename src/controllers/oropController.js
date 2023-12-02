@@ -30,7 +30,7 @@ export const getOneOrop = async (req, res) => {
                 { $inc: { searchCount: 1 } }
             );
             console.log('[getOneOrop] Search incrementation for OROP:', title);
-            return res.status(200).json(orop.fpOrop);
+            return res.status(200).json(orop);
         }
         console.warn('[getOneOrop] No Orop found with query', query);
         return res.status(404).json(`No OROP found with query ${query.title}`);
