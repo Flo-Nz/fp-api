@@ -175,13 +175,18 @@ export const upsertDiscordOrop = async (req, res) => {
         }
 
         // Replace rating if already rated
+        console.log('USER ID', userId);
         const orop = await Orop.findOneAndUpdate(
             { title, 'discordOrop.ratings.userId': userId },
             {
-                $set: { 'discordOrop.ratings.$.rating': rating },
-                $addToSet: { title: body.title?.toLowerCase() },
+                $set: {
+                    'discordOrop.ratings.$[elem].rating': rating,
+                },
             },
-            { new: true }
+            {
+                arrayFilters: [{ 'elem.userId': { $eq: userId } }],
+                new: true,
+            }
         );
         if (orop) {
             console.log('[upsertDiscordOrop] Rating modified', {
