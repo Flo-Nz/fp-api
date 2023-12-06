@@ -33,7 +33,9 @@ export const getTopSearchedOrop = async (req, res) => {
         });
         return res.status(200).json(topSearchedOrop);
     } catch (error) {
-        res.status(500).json(`Something went wrong during getTopOrop ${error}`);
+        res.status(500).json(
+            `Something went wrong during getTopSearchedOrop ${error}`
+        );
     }
 };
 
@@ -86,7 +88,8 @@ export const getOneOrop = async (req, res) => {
         if (orop) {
             await Orop.updateOne(
                 { _id: orop._id },
-                { $inc: { searchCount: 1 } }
+                { $inc: { searchCount: 1 } },
+                { new: true }
             );
             console.log('[getOneOrop] Search incrementation for OROP:', title);
             return res.status(200).json(orop);
