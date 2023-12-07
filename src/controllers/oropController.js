@@ -18,10 +18,10 @@ export const getAllOrop = async (req, res) => {
 export const getTopSearchedOrop = async (req, res) => {
     try {
         const { query: params } = req;
-        const { limit, withoutVideo } = params;
+        const { limit, withVideo } = params;
         const query =
-            withoutVideo === 'true'
-                ? { 'fpOrop.youtubeUrl': { $exists: false } }
+            withVideo === 'true'
+                ? { 'fpOrop.youtubeUrl': { $exists: true } }
                 : {};
         const topSearchedOrop = await Orop.find(query, null, {
             sort: { searchCount: -1 },
@@ -29,7 +29,7 @@ export const getTopSearchedOrop = async (req, res) => {
         });
         console.log('[getTopSearchedOrop] returning top with params: ', {
             limit,
-            withoutVideo,
+            withVideo,
         });
         return res.status(200).json(topSearchedOrop);
     } catch (error) {
@@ -43,6 +43,7 @@ export const getTopRatedOrop = async (req, res) => {
     try {
         const { query: params } = req;
         const { limit, onlyFP } = params;
+
         if (onlyFP === 'true') {
             const topFpRatedOrop = await Orop.find(
                 { 'fpOrop.rating': { $exists: true } },
@@ -55,8 +56,9 @@ export const getTopRatedOrop = async (req, res) => {
             console.log('[getTopRatedOrop] returning FP TOP');
             return res.status(200).json(topFpRatedOrop);
         }
+
         const topRatedOrop = await Orop.find(
-            { 'discordOrop.ratings': { $exists: true, $not: { $size: 0 } } },
+            { 'discordOrop.ratings.1': { $exists: true } },
             null,
             {
                 limit: limit && limit <= 30 ? limit : 10,
@@ -184,6 +186,7 @@ export const upsertDiscordOrop = async (req, res) => {
                 $set: {
                     'discordOrop.ratings.$[elem].rating': rating,
                 },
+                $inc: { searchCount: 1 },
             },
             {
                 arrayFilters: [{ 'elem.userId': { $eq: userId } }],
@@ -202,6 +205,7 @@ export const upsertDiscordOrop = async (req, res) => {
             { title },
             {
                 $push: { 'discordOrop.ratings': { userId, rating } },
+                $inc: { searchCount: 1 },
             },
             { new: true }
         );
