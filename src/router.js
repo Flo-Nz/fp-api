@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
     getAllOrop,
+    getAllUserRatings,
     getOneOrop,
     getTopRatedOrop,
     getTopSearchedOrop,
@@ -23,5 +24,6 @@ router.get('/orop/top/rated', validateApiKey, getTopRatedOrop);
 router.post('/fporop', validateApiKey, upsertFpOrop);
 router.post('/fporop/rating', validateApiKey, upsertFpOropRating);
 router.post('/discordorop', validateApiKey, upsertDiscordOrop);
+router.get('/discordorop/ratings', validateApiKey, getAllUserRatings);
 
 export default router;

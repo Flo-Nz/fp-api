@@ -93,7 +93,10 @@ export const getOneOrop = async (req, res) => {
                 { $inc: { searchCount: 1 } },
                 { new: true }
             );
-            console.log('[getOneOrop] Search incrementation for OROP:', title);
+            console.log(
+                '[getOneOrop] Search incrementation and found one orop with title: ',
+                title
+            );
             return res.status(200).json(updatedOrop);
         }
         console.warn('[getOneOrop] No Orop found with query', query);
@@ -121,6 +124,7 @@ export const upsertFpOrop = async (req, res) => {
                 );
         }
         const { fpOrop } = bodyWithoutTitle;
+        // we need to map the keys of fpOrop to set the new fpOrop field without erasing existing fields (like "rating" for ex)
         const fpOropKeys = map(keys(fpOrop), (key) => `fpOrop.${key}`);
         const fpOropMongoSet = {};
         for (const key of fpOropKeys) {
@@ -154,13 +158,16 @@ export const upsertFpOropRating = async (req, res) => {
             return res.status(400).json(`Missing title or rating`);
         }
         const orop = await Orop.findOneAndUpdate(
-            { title },
-            { $set: { 'fpOrop.rating': parseInt(rating) } },
+            { title: { $elemMatch: { $eq: title } } },
+            {
+                $set: { 'fpOrop.rating': parseInt(rating) },
+                $addToSet: { title: title.toLowerCase() },
+            },
             { new: true, upsert: true }
         );
         return res.status(200).json(orop);
     } catch (error) {
-        return res.status(500).json('Something went wrong.');
+        return res.status(500).json(`Something went wrong. ${error}`);
     }
 };
 
@@ -238,6 +245,37 @@ export const upsertDiscordOrop = async (req, res) => {
             });
         }
         return;
+    } catch (error) {
+        return res.status(500).json(error.message);
+    }
+};
+
+export const getAllUserRatings = async (req, res) => {
+    try {
+        const { query } = req;
+        const { userId, skip } = query;
+        if (!userId) {
+            console.warn('[getAllUserRatings] Bad request', {
+                userId,
+            });
+            return res
+                .status(400)
+                .json(`Missing required query parameter (userId)`);
+        }
+
+        // Replace rating if already rated
+        const userOrops = await Orop.find(
+            { 'discordOrop.ratings.userId': userId },
+            { title: 1, 'discordOrop.ratings.$': 1, discordRating: 1 },
+            { skip, limit: 12 }
+        );
+        console.log(
+            userOrops.length > 0
+                ? '[GetAllUserRatings] Returning ratings for'
+                : '[GetAllUserRatings] No more ratings',
+            userId
+        );
+        return res.status(200).json(userOrops);
     } catch (error) {
         return res.status(500).json(error.message);
     }
