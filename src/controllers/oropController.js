@@ -59,10 +59,7 @@ export const getTopRatedOrop = async (req, res) => {
 
         const topRatedOrop = await Orop.find(
             { 'discordOrop.ratings.1': { $exists: true } },
-            null,
-            {
-                limit: limit && limit <= 30 ? limit : 10,
-            }
+            { title: 1, discordOrop: 1, discordRating: 1 }
         );
 
         const sortedTopRatedOrop = topRatedOrop
@@ -70,7 +67,7 @@ export const getTopRatedOrop = async (req, res) => {
             .reverse();
 
         console.log('[getTopRateOrop] returning DISCORD TOP');
-        return res.status(200).json(sortedTopRatedOrop);
+        return res.status(200).json(sortedTopRatedOrop.slice(0, 12));
     } catch (error) {
         res.status(500).json(
             `Something went wrong during getTopRatedOrop ${error}`
@@ -267,7 +264,7 @@ export const getAllUserRatings = async (req, res) => {
         // Replace rating if already rated
         const userOrops = await Orop.find(
             { 'discordOrop.ratings.userId': userId },
-            { title: 1, 'discordOrop.ratings.$': 1, discordRating: 1 },
+            { title: 1, 'discordOrop.ratings.$': 1 },
             { sort: { title: 1 }, skip, limit: 12 }
         );
         console.log(
