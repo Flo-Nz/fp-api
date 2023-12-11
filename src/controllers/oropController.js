@@ -132,7 +132,7 @@ export const upsertFpOrop = async (req, res) => {
         }
         const orop = await Orop.findOneAndUpdate(
             {
-                'fpOrop.youtubeUrl': body.fpOrop?.youtubeUrl,
+                title: { $elemMatch: { $eq: body.title.toLowerCase() } },
             },
             {
                 $set: {
@@ -144,6 +144,7 @@ export const upsertFpOrop = async (req, res) => {
             { new: true, upsert: true }
         );
         console.log('[upsertFpOrop] Success: ', orop.title);
+        console.log('OROP UPDATED ? ', orop);
         return res.status(200).json(orop);
     } catch (error) {
         return res.status(400).json(`Impossible to upsert OROP. ${error}`);
@@ -267,7 +268,7 @@ export const getAllUserRatings = async (req, res) => {
         const userOrops = await Orop.find(
             { 'discordOrop.ratings.userId': userId },
             { title: 1, 'discordOrop.ratings.$': 1, discordRating: 1 },
-            { skip, limit: 12 }
+            { sort: { title: 1 }, skip, limit: 12 }
         );
         console.log(
             userOrops.length > 0
