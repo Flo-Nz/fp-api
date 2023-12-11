@@ -42,7 +42,7 @@ export const getTopSearchedOrop = async (req, res) => {
 export const getTopRatedOrop = async (req, res) => {
     try {
         const { query: params } = req;
-        const { limit, onlyFP } = params;
+        const { limit, onlyFP, sliceStart, sliceEnd } = params;
 
         if (onlyFP === 'true') {
             const topFpRatedOrop = await Orop.find(
@@ -63,11 +63,22 @@ export const getTopRatedOrop = async (req, res) => {
         );
 
         const sortedTopRatedOrop = topRatedOrop
+            .sort((a, b) => {
+                if (
+                    a.discordOrop.ratings.length > b.discordOrop.ratings.length
+                ) {
+                    return 1;
+                } else {
+                    return -1;
+                }
+            })
             .sort((a, b) => a?.discordRating - b?.discordRating)
             .reverse();
 
         console.log('[getTopRateOrop] returning DISCORD TOP');
-        return res.status(200).json(sortedTopRatedOrop.slice(0, 12));
+        return res
+            .status(200)
+            .json(sortedTopRatedOrop.slice(sliceStart || 0, sliceEnd || 12));
     } catch (error) {
         res.status(500).json(
             `Something went wrong during getTopRatedOrop ${error}`
