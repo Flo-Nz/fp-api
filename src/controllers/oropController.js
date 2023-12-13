@@ -93,12 +93,12 @@ export const getOneOrop = async (req, res) => {
             console.warn('[getOneOrop] No query param in request for FP OROP');
             return res.status(400).json('Missing query param');
         }
-        const { title } = query;
+        const { title, skipSearchInc } = query;
         const orop = await Orop.findOne({ title });
         if (orop) {
             const updatedOrop = await Orop.findOneAndUpdate(
                 { _id: orop._id },
-                { $inc: { searchCount: 1 } },
+                { $inc: { searchCount: skipSearchInc === 'true' ? 0 : 1 } },
                 { new: true }
             );
             console.log(
@@ -183,7 +183,7 @@ export const upsertFpOropRating = async (req, res) => {
 export const upsertDiscordOrop = async (req, res) => {
     try {
         const { body } = req;
-        const { title, userId, rating } = body;
+        const { title, userId, rating, skipSearchInc } = body;
         if (!title || !userId || !rating) {
             console.warn('[upsertDiscordOrop] Bad request', {
                 title,
@@ -202,7 +202,7 @@ export const upsertDiscordOrop = async (req, res) => {
                 $set: {
                     'discordOrop.ratings.$[elem].rating': rating,
                 },
-                $inc: { searchCount: 1 },
+                $inc: { searchCount: skipSearchInc ? 0 : 1 },
             },
             {
                 arrayFilters: [{ 'elem.userId': { $eq: userId } }],
