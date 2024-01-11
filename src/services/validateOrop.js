@@ -11,7 +11,7 @@ export const isValidFpOrop = (orop) => {
 };
 
 export const isValidDiscordOrop = (orop) => {
-    if (!rating || !userId) {
+    if (!orop.rating || !orop.userId) {
         return false;
     }
     return true;
