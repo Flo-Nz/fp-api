@@ -10,6 +10,10 @@ import {
     upsertFpOropRating,
 } from './controllers/oropController.js';
 import { validateApiKey } from './services/validateApiKey.js';
+import {
+    getDiscordAccount,
+    getUserInformations,
+} from './controllers/authController.js';
 
 const router = Router();
 
@@ -25,5 +29,7 @@ router.post('/fporop', validateApiKey, upsertFpOrop);
 router.post('/fporop/rating', validateApiKey, upsertFpOropRating);
 router.post('/discordorop', validateApiKey, upsertDiscordOrop);
 router.get('/discordorop/ratings', validateApiKey, getAllUserRatings);
+router.get('/discord/login', getDiscordAccount);
+router.get('/user/infos', getUserInformations);
 
 export default router;
