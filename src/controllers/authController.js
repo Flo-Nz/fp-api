@@ -17,7 +17,7 @@ export const getDiscordAccount = async (req, res) => {
                         client_secret: process.env.CLIENT_SECRET,
                         code,
                         grant_type: 'authorization_code',
-                        redirect_uri: 'http://localhost:3000/discord/login',
+                        redirect_uri: process.env.DISCORD_REDIRECT_URI,
                         scope: 'identify guilds.members.read',
                     }).toString(),
                     headers: {
@@ -82,7 +82,6 @@ export const getDiscordAccount = async (req, res) => {
                 });
             }
 
-            console.log('EXISTING USER ID : ', user._id.toString());
             const userJwt = jwt.sign(
                 {
                     id: user._id.toString(),
