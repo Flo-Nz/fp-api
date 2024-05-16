@@ -5,6 +5,7 @@ import {
     getOneOrop,
     getTopRatedOrop,
     getTopSearchedOrop,
+    searchOrop,
     upsertDiscordOrop,
     upsertFpOrop,
     upsertFpOropRating,
@@ -22,6 +23,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/orop', validateApiKey, getOneOrop);
+router.get('/orop/search', validateApiKey, searchOrop);
 router.get('/orop/all', validateApiKey, getAllOrop);
 router.get('/orop/top/searched', validateApiKey, getTopSearchedOrop);
 router.get('/orop/top/rated', validateApiKey, getTopRatedOrop);
