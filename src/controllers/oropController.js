@@ -1,6 +1,7 @@
 import { get, keys, map, omit } from 'lodash-es';
 import { Orop } from '../models/Orop.js';
 import { isValidFpOrop } from '../services/validateOrop.js';
+import { sortOropByTitle } from '../lib/sort.js';
 
 export const getAllOrop = async (req, res) => {
     try {
@@ -12,6 +13,25 @@ export const getAllOrop = async (req, res) => {
             .json(
                 `There was a problem during the query. Please try again later`
             );
+    }
+};
+
+export const searchOrop = async (req, res) => {
+    try {
+        const { title } = req.query;
+        if (!title) {
+            res.status(400).json('You did not provide a title query parameter');
+        }
+
+        const orops = await Orop.find({
+            title: { $regex: title, $options: 'i' },
+        });
+        console.log('orops', orops);
+        const sortedOrops = sortOropByTitle(orops);
+        res.status(200).json(sortedOrops);
+    } catch (error) {
+        console.log('[searchOrop] error : ', error);
+        res.status(500).json('Something went wrong');
     }
 };
 
