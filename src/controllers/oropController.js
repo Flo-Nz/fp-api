@@ -23,10 +23,13 @@ export const searchOrop = async (req, res) => {
             res.status(400).json('You did not provide a title query parameter');
         }
 
-        const orops = await Orop.find({
-            title: { $regex: title, $options: 'i' },
-        });
-        console.log('orops', orops);
+        const orops = await Orop.find(
+            {
+                title: { $regex: title, $options: 'i' },
+            },
+            {},
+            { limit: 24 }
+        );
         const sortedOrops = sortOropByTitle(orops);
         res.status(200).json(sortedOrops);
     } catch (error) {
