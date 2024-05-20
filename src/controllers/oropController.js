@@ -205,8 +205,9 @@ export const upsertFpOropRating = async (req, res) => {
 
 export const upsertDiscordOrop = async (req, res) => {
     try {
+        const { userId } = res.locals;
         const { body } = req;
-        const { title, userId, rating, skipSearchInc } = body;
+        const { title, rating, skipSearchInc } = body;
         if (!title || !userId || !rating) {
             console.warn('[upsertDiscordOrop] Bad request', {
                 title,
@@ -285,7 +286,8 @@ export const upsertDiscordOrop = async (req, res) => {
 export const getAllUserRatings = async (req, res) => {
     try {
         const { query } = req;
-        const { userId, skip } = query;
+        const { userId } = res.locals;
+        const { skip, noLimit } = query;
         if (!userId) {
             console.warn('[getAllUserRatings] Bad request', {
                 userId,
@@ -295,11 +297,10 @@ export const getAllUserRatings = async (req, res) => {
                 .json(`Missing required query parameter (userId)`);
         }
 
-        // Replace rating if already rated
         const userOrops = await Orop.find(
             { 'discordOrop.ratings.userId': userId },
-            { title: 1, 'discordOrop.ratings.$': 1 },
-            { sort: { title: 1 }, skip, limit: 12 }
+            {},
+            { sort: { title: 1 }, skip, limit: noLimit ? null : 12 }
         );
         console.log(
             userOrops.length > 0
@@ -308,6 +309,26 @@ export const getAllUserRatings = async (req, res) => {
             userId
         );
         return res.status(200).json(userOrops);
+    } catch (error) {
+        return res.status(500).json(error.message);
+    }
+};
+
+export const removeUserRating = async (req, res) => {
+    try {
+        const { userId } = res.locals;
+        const { title } = req.query;
+        if (!title || !userId) {
+            return res.status(400).json('Missing title or userId');
+        }
+        const deletedRating = await Orop.updateOne(
+            { title },
+            { $pull: { 'discordOrop.ratings': { userId } } }
+        );
+        console.log(
+            `[RemoveUserRating] Removed rating of ${title} for userId ${userId}`
+        );
+        return res.status(200).json(deletedRating);
     } catch (error) {
         return res.status(500).json(error.message);
     }

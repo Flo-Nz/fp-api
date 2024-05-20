@@ -5,6 +5,7 @@ import {
     getOneOrop,
     getTopRatedOrop,
     getTopSearchedOrop,
+    removeUserRating,
     searchOrop,
     upsertDiscordOrop,
     upsertFpOrop,
@@ -30,6 +31,7 @@ router.get('/orop/top/rated', validateApiKey, getTopRatedOrop);
 router.post('/fporop', validateApiKey, upsertFpOrop);
 router.post('/fporop/rating', validateApiKey, upsertFpOropRating);
 router.post('/discordorop', validateApiKey, upsertDiscordOrop);
+router.put('/discordorop/ratings/remove', validateApiKey, removeUserRating);
 router.get('/discordorop/ratings', validateApiKey, getAllUserRatings);
 router.get('/discord/login', getDiscordAccount);
 router.get('/user/infos', getUserInformations);
