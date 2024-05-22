@@ -4,6 +4,7 @@ import {
     getAllOrop,
     getAllUserRatings,
     getOneOrop,
+    getTopAskedOrop,
     getTopRatedOrop,
     getTopSearchedOrop,
     removeUserRating,
@@ -29,6 +30,7 @@ router.get('/orop/search', validateApiKey, searchOrop);
 router.get('/orop/all', validateApiKey, getAllOrop);
 router.get('/orop/top/searched', validateApiKey, getTopSearchedOrop);
 router.get('/orop/top/rated', validateApiKey, getTopRatedOrop);
+router.get('/orop/top/asked', validateApiKey, getTopAskedOrop);
 router.post('/orop/ask', validateApiKey, askForOrop);
 router.post('/fporop', validateApiKey, upsertFpOrop);
 router.post('/fporop/rating', validateApiKey, upsertFpOropRating);

@@ -353,3 +353,38 @@ export const askForOrop = async (req, res) => {
         return res.status(500).json(error.message);
     }
 };
+
+export const getTopAskedOrop = async (req, res) => {
+    try {
+        const topAskedOrop = await Orop.aggregate([
+            {
+                $match: {
+                    'fpOrop.youtubeUrl': {
+                        $exists: false,
+                    },
+                    'askedBy.0': {
+                        $exists: true,
+                    },
+                },
+            },
+            {
+                $addFields: {
+                    askedByCount: {
+                        $size: '$askedBy',
+                    },
+                },
+            },
+            {
+                $sort: {
+                    askedByCount: -1,
+                },
+            },
+            {
+                $limit: 20,
+            },
+        ]);
+        return res.status(200).json(topAskedOrop);
+    } catch (error) {
+        return res.status(500).json(error.message);
+    }
+};
