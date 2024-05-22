@@ -333,3 +333,23 @@ export const removeUserRating = async (req, res) => {
         return res.status(500).json(error.message);
     }
 };
+
+export const askForOrop = async (req, res) => {
+    try {
+        const { userId } = res.locals;
+        const { title } = req.query;
+
+        if (!userId || !title) {
+            return res.status(400).json('Missing title or userId');
+        }
+        const orop = await Orop.findOneAndUpdate(
+            { title },
+            { $addToSet: { askedBy: userId } },
+            { new: true }
+        );
+        console.log(`[AskForOrop] by ${userId} for ${title}`);
+        return res.status(200).json(orop);
+    } catch (error) {
+        return res.status(500).json(error.message);
+    }
+};

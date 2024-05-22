@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+    askForOrop,
     getAllOrop,
     getAllUserRatings,
     getOneOrop,
@@ -28,6 +29,7 @@ router.get('/orop/search', validateApiKey, searchOrop);
 router.get('/orop/all', validateApiKey, getAllOrop);
 router.get('/orop/top/searched', validateApiKey, getTopSearchedOrop);
 router.get('/orop/top/rated', validateApiKey, getTopRatedOrop);
+router.post('/orop/ask', validateApiKey, askForOrop);
 router.post('/fporop', validateApiKey, upsertFpOrop);
 router.post('/fporop/rating', validateApiKey, upsertFpOropRating);
 router.post('/discordorop', validateApiKey, upsertDiscordOrop);
