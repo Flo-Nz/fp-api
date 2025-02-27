@@ -7,93 +7,87 @@ import { addMilliseconds } from 'date-fns';
 export const getDiscordAccount = async (req, res) => {
     try {
         const { code } = req.query;
-        if (code) {
-            const tokenResponseData = await request(
-                'https://discord.com/api/oauth2/token',
-                {
-                    method: 'POST',
-                    body: new URLSearchParams({
-                        client_id: process.env.CLIENT_ID,
-                        client_secret: process.env.CLIENT_SECRET,
-                        code,
-                        grant_type: 'authorization_code',
-                        redirect_uri: process.env.DISCORD_REDIRECT_URI,
-                        scope: 'identify guilds.members.read',
-                    }).toString(),
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                }
-            );
-            const oauthData = await tokenResponseData.body.json();
-            console.log('OAUTH DATA', oauthData);
-            const userResult = await request(
-                'https://discord.com/api/users/@me',
-                {
-                    headers: {
-                        authorization: `${oauthData.token_type} ${oauthData.access_token}`,
-                    },
-                }
-            );
-            const discordUser = await userResult.body.json();
-            console.log('USER RESULT', discordUser);
+        if (!code) {
+            return res.status(400).json("You didn't provide a valid code");
+        }
 
-            const fpMemberResult = await request(
-                'https://discord.com/api/users/@me/guilds/933486333756846101/member',
-                {
-                    headers: {
-                        authorization: `${oauthData.token_type} ${oauthData.access_token}`,
-                    },
-                }
-            );
-            const discordMember = await fpMemberResult.body.json();
-            console.log('DISCORD MEMBER', discordMember);
-
-            let user;
-            user = await Account.findOneAndUpdate(
-                {
-                    'discord.id': discordMember.user.id,
+        const tokenResponseData = await request(
+            'https://discord.com/api/oauth2/token',
+            {
+                method: 'POST',
+                body: new URLSearchParams({
+                    client_id: process.env.CLIENT_ID,
+                    client_secret: process.env.CLIENT_SECRET,
+                    code,
+                    grant_type: 'authorization_code',
+                    redirect_uri: process.env.DISCORD_REDIRECT_URI,
+                    scope: 'identify guilds.members.read',
+                }).toString(),
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                {
-                    username: discordMember.user.username,
-                    'discord.access_token': oauthData.access_token,
-                    'discord.refresh_token': oauthData.refresh_token,
+            }
+        );
+        const oauthData = await tokenResponseData.body.json();
+        console.log('OAUTH DATA', oauthData);
+        const userResult = await request('https://discord.com/api/users/@me', {
+            headers: {
+                authorization: `${oauthData.token_type} ${oauthData.access_token}`,
+            },
+        });
+        const discordUser = await userResult.body.json();
+        console.log('USER RESULT', discordUser);
+
+        const fpMemberResult = await request(
+            'https://discord.com/api/users/@me/guilds/933486333756846101/member',
+            {
+                headers: {
+                    authorization: `${oauthData.token_type} ${oauthData.access_token}`,
+                },
+            }
+        );
+        const discordMember = await fpMemberResult.body.json();
+        console.log('DISCORD MEMBER', discordMember);
+
+        let user;
+        user = await Account.findOneAndUpdate(
+            {
+                'discord.id': discordMember.user.id,
+            },
+            {
+                username: discordMember.user.username,
+                'discord.access_token': oauthData.access_token,
+                'discord.refresh_token': oauthData.refresh_token,
+                expires_at: addMilliseconds(new Date(), oauthData.expires_in),
+            },
+            { new: true }
+        );
+        if (!user) {
+            user = await Account.create({
+                username: discordMember.user.username,
+                apikey: uuid(),
+                discord: {
+                    id: discordMember.user.id,
+                    roles: discordMember.roles,
+                    access_token: oauthData.access_token,
+                    refresh_token: oauthData.refresh_token,
                     expires_at: addMilliseconds(
                         new Date(),
                         oauthData.expires_in
                     ),
                 },
-                { new: true }
-            );
-            if (!user) {
-                user = await Account.create({
-                    username: discordMember.user.username,
-                    apikey: uuid(),
-                    discord: {
-                        id: discordMember.user.id,
-                        roles: discordMember.roles,
-                        access_token: oauthData.access_token,
-                        refresh_token: oauthData.refresh_token,
-                        expires_at: addMilliseconds(
-                            new Date(),
-                            oauthData.expires_in
-                        ),
-                    },
-                });
-            }
-
-            const userJwt = jwt.sign(
-                {
-                    id: user._id.toString(),
-                    apikey: user.apikey,
-                },
-                process.env.JWT_SECRET
-            );
-
-            return res.redirect(`${process.env.FRONT_URL}?jwt=${userJwt}`);
-        } else {
-            return res.status(400).json("You didn't provide a valid code");
+            });
         }
+
+        const userJwt = jwt.sign(
+            {
+                id: user._id.toString(),
+                apikey: user.apikey,
+            },
+            process.env.JWT_SECRET
+        );
+
+        return res.redirect(`${process.env.FRONT_URL}?jwt=${userJwt}`);
     } catch (error) {
         return res
             .status(500)
