@@ -30,3 +30,31 @@ export const validateApiKey = async (req, res, next) => {
             .json('Something went wrong, please try again later.');
     }
 };
+
+export const validateServiceApiKey = async (req, res, next) => {
+    try {
+        const { apikey } = req.headers;
+
+        const authorizedApiKeys = await Account.find(
+            { type: 'service' },
+            { apikey: 1 }
+        );
+        console.log('authorizedApiKeys', authorizedApiKeys);
+
+        const isAuthorizedApiKey = authorizedApiKeys.find(
+            (account) => account.apikey === apikey
+        );
+
+        if (!isAuthorizedApiKey) {
+            console.warn(
+                `Unauthorized try to use service endpoint with apiKey : ${apikey}`
+            );
+            return res
+                .status(401)
+                .json('You are not authorized to use this endpoint');
+        }
+        next();
+    } catch (error) {
+        return res.status(500).json(error.message);
+    }
+};

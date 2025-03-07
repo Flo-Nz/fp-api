@@ -388,3 +388,28 @@ export const getTopAskedOrop = async (req, res) => {
         return res.status(500).json(error.message);
     }
 };
+
+export const getOneDayOneGame = async (req, res) => {
+    try {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+        const docs = await Orop.aggregate([
+            { $match: { lastOneDayOneGame: { $lt: sixMonthsAgo } } },
+            { $sample: { size: 1 } },
+        ]);
+
+        if (docs.length > 0) {
+            const boardgame = docs[0];
+            await Orop.findByIdAndUpdate(boardgame._id, {
+                lastOneDayOneGame: new Date(),
+            });
+
+            return res.status(200).json(boardgame);
+        }
+
+        return res.status(404).json('No boardgame for today');
+    } catch (error) {
+        return res.status(500).json(error.message);
+    }
+};

@@ -3,6 +3,7 @@ import {
     askForOrop,
     getAllOrop,
     getAllUserRatings,
+    getOneDayOneGame,
     getOneOrop,
     getTopAskedOrop,
     getTopRatedOrop,
@@ -13,7 +14,10 @@ import {
     upsertFpOrop,
     upsertFpOropRating,
 } from './controllers/oropController.js';
-import { validateApiKey } from './services/validateApiKey.js';
+import {
+    validateApiKey,
+    validateServiceApiKey,
+} from './services/validateApiKey.js';
 import {
     getDiscordAccount,
     getUserInformations,
@@ -39,5 +43,6 @@ router.put('/discordorop/ratings/remove', validateApiKey, removeUserRating);
 router.get('/discordorop/ratings', validateApiKey, getAllUserRatings);
 router.get('/discord/login', getDiscordAccount);
 router.get('/user/infos', getUserInformations);
+router.get('/one-day-one-game', validateServiceApiKey, getOneDayOneGame);
 
 export default router;
