@@ -401,9 +401,6 @@ export const getOneDayOneGame = async (req, res) => {
 
         if (docs.length > 0) {
             const boardgame = docs[0];
-            console.log('GAME : ', boardgame);
-
-            const today = new Date();
             await Orop.findByIdAndUpdate(boardgame._id, {
                 lastOneDayOneGame: new Date(),
             });
