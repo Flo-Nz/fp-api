@@ -20,6 +20,7 @@ import {
 } from './services/validateApiKey.js';
 import {
     getDiscordAccount,
+    getGoogleAccount,
     getUserInformations,
 } from './controllers/authController.js';
 
@@ -44,5 +45,6 @@ router.get('/discordorop/ratings', validateApiKey, getAllUserRatings);
 router.get('/discord/login', getDiscordAccount);
 router.get('/user/infos', getUserInformations);
 router.get('/one-day-one-game', validateServiceApiKey, getOneDayOneGame);
+router.post('/google/login', getGoogleAccount);
 
 export default router;

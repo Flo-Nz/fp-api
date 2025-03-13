@@ -12,6 +12,12 @@ const AccountSchema = new mongoose.Schema({
         refresh_token: { type: String },
         expires_at: { type: Date },
     },
+    google: {
+        id: { type: String },
+        access_token: { type: String },
+        refresh_token: { type: String },
+        expires_at: { type: Date },
+    },
 });
 
 export const Account = mongoose.model('Account', AccountSchema);
