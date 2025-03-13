@@ -12,8 +12,13 @@ export const validateApiKey = async (req, res, next) => {
             });
             return res.status(401).json('Authentication failed');
         }
-        console.log(`Authentication success from ${account.username}`);
-        res.locals.userId = account.discord?.id;
+        console.log(
+            `Authentication success from ${account.username} - ${account.type}`
+        );
+        res.locals.userId =
+            account.type === 'discord'
+                ? account.discord?.id
+                : account.google?.id;
         if (account.type === 'service') {
             if (req.body?.userId) {
                 res.locals.userId = req.body.userId;
@@ -39,7 +44,6 @@ export const validateServiceApiKey = async (req, res, next) => {
             { type: 'service' },
             { apikey: 1 }
         );
-        console.log('authorizedApiKeys', authorizedApiKeys);
 
         const isAuthorizedApiKey = authorizedApiKeys.find(
             (account) => account.apikey === apikey
