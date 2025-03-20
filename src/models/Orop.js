@@ -36,6 +36,7 @@ const OropSchema = new mongoose.Schema(
         searchCount: { type: Number, default: 0 },
         askedBy: [{ type: String }],
         lastOneDayOneGame: { type: Date },
+        lastUpdatedBy: { type: String },
     },
     {
         virtuals: {
