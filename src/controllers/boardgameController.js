@@ -1,4 +1,3 @@
-import { omit } from 'lodash-es';
 import { Orop } from '../models/Orop.js';
 
 export const updateBoardgame = async (req, res) => {
@@ -8,8 +7,6 @@ export const updateBoardgame = async (req, res) => {
         if (!id) {
             return res.status(400).json('No ID provided in path');
         }
-        console.log('id', id);
-        console.log('body', body);
         const updatedGame = await Orop.findOneAndUpdate(
             {
                 _id: id,
