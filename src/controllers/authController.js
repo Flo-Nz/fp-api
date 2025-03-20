@@ -115,9 +115,7 @@ export const getGoogleAccount = async (req, res) => {
     );
     try {
         const { code } = req.body;
-        console.log('code', code);
         if (code) {
-            console.log('coucou');
             const {
                 tokens: {
                     access_token,
@@ -134,7 +132,6 @@ export const getGoogleAccount = async (req, res) => {
                 version: 'v2',
             });
             const userInfo = await googleApi.userinfo.get();
-            console.log('user Info : ', userInfo.data);
             const { id, given_name } = userInfo?.data;
 
             let user;
@@ -172,7 +169,6 @@ export const getGoogleAccount = async (req, res) => {
                 process.env.JWT_SECRET
             );
             return res.status(200).json({ jwt: userJwt });
-            // return res.redirect(`${process.env.FRONT_URL}?jwt=${userJwt}`);
         } else {
             return res.status(400).json("You didn't provide a valid code");
         }

@@ -40,8 +40,7 @@ export const searchOrop = async (req, res) => {
 
 export const getTopSearchedOrop = async (req, res) => {
     try {
-        const { query: params } = req;
-        const { limit, withVideo } = params;
+        const { limit, withVideo } = req.query;
         const query =
             withVideo === 'true'
                 ? { 'fpOrop.youtubeUrl': { $exists: true } }
@@ -64,8 +63,7 @@ export const getTopSearchedOrop = async (req, res) => {
 
 export const getTopRatedOrop = async (req, res) => {
     try {
-        const { query: params } = req;
-        const { limit, onlyFP, sliceStart, sliceEnd } = params;
+        const { limit, onlyFP, sliceStart, sliceEnd } = req.query;
 
         if (onlyFP === 'true') {
             const topFpRatedOrop = await Orop.find(
@@ -297,11 +295,24 @@ export const getAllUserRatings = async (req, res) => {
                 .json(`Missing required query parameter (userId)`);
         }
 
-        const userOrops = await Orop.find(
-            { 'discordOrop.ratings.userId': userId },
-            {},
-            { sort: { title: 1 }, skip, limit: noLimit ? null : 12 }
-        );
+        const userOrops = await Orop.aggregate([
+            { $match: { 'discordOrop.ratings.userId': userId } },
+            {
+                $addFields: {
+                    firstTitleElement: { $arrayElemAt: ['$title', 0] },
+                },
+            },
+            {
+                $addFields: {
+                    firstTitleElementLower: { $toLower: '$firstTitleElement' },
+                },
+            },
+            { $addFields: { id: { $toString: '$_id' } } }, // Add the id field as a string
+            { $sort: { firstTitleElementLower: 1 } },
+            { $skip: skip || 0 }, // Ensure skip is a number
+            { $limit: noLimit ? Number.MAX_SAFE_INTEGER : 12 }, // Use a large number if noLimit is true
+        ]);
+
         console.log(
             userOrops.length > 0
                 ? '[GetAllUserRatings] Returning ratings for'
