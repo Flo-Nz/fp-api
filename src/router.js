@@ -48,7 +48,7 @@ router.get('/orop/top/asked', validateApiKey, getTopAskedOrop);
 router.post('/orop/ask', validateApiKey, askForOrop);
 router.put('/boardgame/:id', validateScribeAccount, updateBoardgame);
 router.delete('/boardgame/:id', validateScribeAccount, deleteBoardgame);
-router.get('/boardgame/:id/youtube', validateScribeAccount, findYoutubeOrop);
+router.get('/boardgame/:id/youtube', validateApiKey, findYoutubeOrop);
 
 // Ratings
 // Yoel
