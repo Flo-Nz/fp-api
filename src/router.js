@@ -28,6 +28,7 @@ import {
     deleteBoardgame,
     updateBoardgame,
 } from './controllers/boardgameController.js';
+import { findYoutubeOrop } from './controllers/youtubeController.js';
 
 const router = Router();
 
@@ -47,6 +48,7 @@ router.get('/orop/top/asked', validateApiKey, getTopAskedOrop);
 router.post('/orop/ask', validateApiKey, askForOrop);
 router.put('/boardgame/:id', validateScribeAccount, updateBoardgame);
 router.delete('/boardgame/:id', validateScribeAccount, deleteBoardgame);
+router.get('/boardgame/:id/youtube', validateScribeAccount, findYoutubeOrop);
 
 // Ratings
 // Yoel
