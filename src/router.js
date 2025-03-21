@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import {
     askForOrop,
-    getAllOrop,
     getAllUserRatings,
     getOneDayOneGame,
     getOneOrop,
+    getPaginatedOrop,
     getTopAskedOrop,
     getTopRatedOrop,
     getTopSearchedOrop,
@@ -35,7 +35,7 @@ router.get('/', (req, res) => {
 // Get lists of orops
 router.get('/orop', validateApiKey, getOneOrop);
 router.get('/orop/search', validateApiKey, searchOrop);
-router.get('/orop/all', validateApiKey, getAllOrop);
+router.get('/orop/all', validateApiKey, getPaginatedOrop);
 router.get('/orop/top/searched', validateApiKey, getTopSearchedOrop);
 router.get('/orop/top/rated', validateApiKey, getTopRatedOrop);
 router.get('/orop/top/asked', validateApiKey, getTopAskedOrop);

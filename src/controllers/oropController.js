@@ -3,19 +3,43 @@ import { Orop } from '../models/Orop.js';
 import { isValidFpOrop } from '../services/validateOrop.js';
 import { sortOropByTitle } from '../lib/sort.js';
 
-export const getAllOrop = async (req, res) => {
+export const getPaginatedOrop = async (req, res) => {
     try {
-        const allOrop = await Orop.find();
-        return res.status(200).json(allOrop);
+        const page = parseInt(req.query.page) || 1; // Default to page 1 if not provided
+        const limit = parseInt(req.query.limit) || 24; // Default to 10 documents per page if not provided
+        const skip = (page - 1) * limit;
+
+        const allOrop = await Orop.aggregate([
+            {
+                $addFields: {
+                    firstTitleElement: { $arrayElemAt: ['$title', 0] },
+                },
+            },
+            {
+                $addFields: {
+                    firstTitleElementLower: { $toLower: '$firstTitleElement' },
+                },
+            },
+            { $addFields: { id: { $toString: '$_id' } } },
+            { $sort: { firstTitleElementLower: 1 } },
+            { $skip: skip },
+            { $limit: limit },
+        ]);
+
+        const totalDocuments = await Orop.countDocuments(); // Get the total number of documents
+
+        return res.status(200).json({
+            data: allOrop,
+            currentPage: page,
+            totalPages: Math.ceil(totalDocuments / limit),
+            totalDocuments: totalDocuments,
+        });
     } catch (error) {
-        return res
-            .status(500)
-            .json(
-                `There was a problem during the query. Please try again later`
-            );
+        return res.status(500).json({
+            message: `There was a problem during the query. Please try again later`,
+        });
     }
 };
-
 export const searchOrop = async (req, res) => {
     try {
         const { title } = req.query;

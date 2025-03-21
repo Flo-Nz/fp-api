@@ -99,11 +99,7 @@ export const getDiscordAccount = async (req, res) => {
             return res.status(400).json("You didn't provide a valid code");
         }
     } catch (error) {
-        return res
-            .status(500)
-            .json(
-                `There was a problem during the query. Please try again later`
-            );
+        return res.status(500).json(error.message);
     }
 };
 
