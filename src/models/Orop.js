@@ -37,6 +37,8 @@ const OropSchema = new mongoose.Schema(
         askedBy: [{ type: String }],
         lastOneDayOneGame: { type: Date },
         lastUpdatedBy: { type: String },
+        lastYoutubeScrapping: { type: Date },
+        status: { type: String },
     },
     {
         virtuals: {
@@ -55,6 +57,7 @@ const OropSchema = new mongoose.Schema(
         toJSON: {
             virtuals: true,
         },
+        timestamps: true,
     }
 );
 
