@@ -24,7 +24,10 @@ import {
     getGoogleAccount,
     getUserInformations,
 } from './controllers/authController.js';
-import { updateBoardgame } from './controllers/boardgameController.js';
+import {
+    deleteBoardgame,
+    updateBoardgame,
+} from './controllers/boardgameController.js';
 
 const router = Router();
 
@@ -43,6 +46,7 @@ router.get('/orop/top/asked', validateApiKey, getTopAskedOrop);
 // Interact with boardgames / orops
 router.post('/orop/ask', validateApiKey, askForOrop);
 router.put('/boardgame/:id', validateScribeAccount, updateBoardgame);
+router.delete('/boardgame/:id', validateScribeAccount, deleteBoardgame);
 
 // Ratings
 // Yoel

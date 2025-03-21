@@ -24,3 +24,18 @@ export const updateBoardgame = async (req, res) => {
         res.status(500).json('Something went wrong');
     }
 };
+
+export const deleteBoardgame = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await Orop.findByIdAndDelete(id);
+        if (!result) {
+            return res.status(404).json('Boardgame not found');
+        }
+        console.log(`[DELETE BOARDGAME] ${id} / ${result.title[0]} deleted`);
+        res.status(204).json('Successful deletion.');
+    } catch (error) {
+        console.log('[deleteBoardgame] error', error);
+        res.status(500).json(error.message);
+    }
+};
