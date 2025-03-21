@@ -80,6 +80,7 @@ export const validateScribeAccount = async (req, res, next) => {
         if (commonRoles.length === 0) {
             return res.status(403).json('Unauthorized account.');
         }
+        console.log('Scrib account connected with ApiKey: ', apikey);
         next();
     } catch (error) {
         console.log('[ValidateScribeAccount] error :', error.message);
