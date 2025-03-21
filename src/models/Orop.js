@@ -61,4 +61,21 @@ const OropSchema = new mongoose.Schema(
     }
 );
 
+OropSchema.pre('save', function (next) {
+    if (this.discordOrop && this.discordOrop.ratings) {
+        this.discordRating =
+            round(meanBy(this.discordOrop.ratings, 'rating')) || null;
+    }
+    next();
+});
+
+OropSchema.pre('findOneAndUpdate', function (next) {
+    const update = this.getUpdate();
+    if (update.discordOrop && update.discordOrop.ratings) {
+        update.discordRating =
+            round(meanBy(update.discordOrop.ratings, 'rating')) || null;
+    }
+    next();
+});
+
 export const Orop = mongoose.model('Orop', OropSchema);

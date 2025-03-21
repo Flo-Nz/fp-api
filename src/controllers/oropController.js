@@ -2,6 +2,7 @@ import { get, keys, map, omit } from 'lodash-es';
 import { Orop } from '../models/Orop.js';
 import { isValidFpOrop } from '../services/validateOrop.js';
 import { sortOropByTitle } from '../lib/sort.js';
+import { addDiscordRating } from '../lib/addDiscordRating.js';
 
 export const getPaginatedOrop = async (req, res) => {
     try {
@@ -26,10 +27,12 @@ export const getPaginatedOrop = async (req, res) => {
             { $limit: limit },
         ]);
 
+        const allOropWithVirtuals = addDiscordRating(allOrop);
+
         const totalDocuments = await Orop.countDocuments(); // Get the total number of documents
 
         return res.status(200).json({
-            data: allOrop,
+            data: allOropWithVirtuals,
             currentPage: page,
             totalPages: Math.ceil(totalDocuments / limit),
             totalDocuments: totalDocuments,
@@ -337,13 +340,15 @@ export const getAllUserRatings = async (req, res) => {
             { $limit: noLimit ? Number.MAX_SAFE_INTEGER : 12 }, // Use a large number if noLimit is true
         ]);
 
+        const userOropsWithVirtuals = addDiscordRating(userOrops);
+
         console.log(
-            userOrops.length > 0
+            userOropsWithVirtuals.length > 0
                 ? '[GetAllUserRatings] Returning ratings for'
                 : '[GetAllUserRatings] No more ratings',
             userId
         );
-        return res.status(200).json(userOrops);
+        return res.status(200).json(userOropsWithVirtuals);
     } catch (error) {
         return res.status(500).json(error.message);
     }
@@ -418,7 +423,8 @@ export const getTopAskedOrop = async (req, res) => {
                 $limit: 20,
             },
         ]);
-        return res.status(200).json(topAskedOrop);
+        const topAskedOropWithVirtuals = addDiscordRating(topAskedOrop);
+        return res.status(200).json(topAskedOropWithVirtuals);
     } catch (error) {
         return res.status(500).json(error.message);
     }
