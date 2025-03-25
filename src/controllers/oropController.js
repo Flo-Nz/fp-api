@@ -2,12 +2,15 @@ import { get, keys, map, omit } from 'lodash-es';
 import { Orop } from '../models/Orop.js';
 import { isValidFpOrop } from '../services/validateOrop.js';
 import { sortOropByTitle } from '../lib/sort.js';
-import { addDiscordRating } from '../lib/addDiscordRating.js';
+import { addVirtuals } from '../lib/addVirtuals.js';
 
 export const getPaginatedOrop = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1; // Default to page 1 if not provided
-        const limit = parseInt(req.query.limit) || 24; // Default to 10 documents per page if not provided
+        const limit =
+            (parseInt(req.query.limit) > 24 ? 24 : parseInt(req.query.limit)) ||
+            24; // Default to 24 documents per page if not provided
+        const oropOnly = req.query.oropOnly === 'true' ? true : false;
         const skip = (page - 1) * limit;
 
         const allOrop = await Orop.aggregate([
@@ -22,14 +25,27 @@ export const getPaginatedOrop = async (req, res) => {
                 },
             },
             { $addFields: { id: { $toString: '$_id' } } },
+            ...(oropOnly
+                ? [
+                      {
+                          $match: {
+                              'fpOrop.youtubeUrl': { $exists: true, $ne: '' },
+                          },
+                      },
+                  ]
+                : []),
             { $sort: { firstTitleElementLower: 1 } },
             { $skip: skip },
             { $limit: limit },
         ]);
 
-        const allOropWithVirtuals = addDiscordRating(allOrop);
+        const allOropWithVirtuals = addVirtuals(allOrop);
 
-        const totalDocuments = await Orop.countDocuments(); // Get the total number of documents
+        const totalDocuments = oropOnly
+            ? await Orop.countDocuments({
+                  'fpOrop.youtubeUrl': { $exists: true, $ne: '' },
+              })
+            : await Orop.countDocuments(); // Get the total number of documents
 
         return res.status(200).json({
             data: allOropWithVirtuals,
@@ -46,17 +62,20 @@ export const getPaginatedOrop = async (req, res) => {
 export const searchOrop = async (req, res) => {
     try {
         const { title } = req.query;
+        const { oropOnly } = req.query;
+        console.log('orop only', oropOnly);
         if (!title) {
             res.status(400).json('You did not provide a title query parameter');
         }
+        const filter = {
+            title: { $regex: title, $options: 'i' },
+        };
 
-        const orops = await Orop.find(
-            {
-                title: { $regex: title, $options: 'i' },
-            },
-            {},
-            { limit: 24 }
-        );
+        if (oropOnly === 'true') {
+            filter['fpOrop.youtubeUrl'] = { $exists: true, $ne: '' };
+        }
+
+        const orops = await Orop.find(filter, {}, { limit: 24 });
         const sortedOrops = sortOropByTitle(orops);
         res.status(200).json(sortedOrops);
     } catch (error) {
@@ -290,6 +309,7 @@ export const upsertDiscordOrop = async (req, res) => {
             fpOrop: {},
             discordOrop: { ratings: [{ userId, rating }] },
             searchCount: 1,
+            status: 'pending',
         });
         if (newDiscordOrop) {
             console.log(
@@ -340,7 +360,7 @@ export const getAllUserRatings = async (req, res) => {
             { $limit: noLimit ? Number.MAX_SAFE_INTEGER : 12 }, // Use a large number if noLimit is true
         ]);
 
-        const userOropsWithVirtuals = addDiscordRating(userOrops);
+        const userOropsWithVirtuals = addVirtuals(userOrops);
 
         console.log(
             userOropsWithVirtuals.length > 0
@@ -423,7 +443,7 @@ export const getTopAskedOrop = async (req, res) => {
                 $limit: 20,
             },
         ]);
-        const topAskedOropWithVirtuals = addDiscordRating(topAskedOrop);
+        const topAskedOropWithVirtuals = addVirtuals(topAskedOrop);
         return res.status(200).json(topAskedOropWithVirtuals);
     } catch (error) {
         return res.status(500).json(error.message);
