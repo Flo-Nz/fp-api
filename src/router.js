@@ -25,6 +25,7 @@ import {
     getUserInformations,
 } from './controllers/authController.js';
 import {
+    addBoardgame,
     deleteBoardgame,
     updateBoardgame,
 } from './controllers/boardgameController.js';
@@ -46,6 +47,7 @@ router.get('/orop/top/asked', validateApiKey, getTopAskedOrop);
 
 // Interact with boardgames / orops
 router.post('/orop/ask', validateApiKey, askForOrop);
+router.post('/boardgame', validateApiKey, addBoardgame);
 router.put('/boardgame/:id', validateScribeAccount, updateBoardgame);
 router.delete('/boardgame/:id', validateScribeAccount, deleteBoardgame);
 router.get('/boardgame/:id/youtube', validateApiKey, findYoutubeOrop);
