@@ -27,7 +27,9 @@ import {
 import {
     addBoardgame,
     deleteBoardgame,
+    getPendingBoardgameList,
     updateBoardgame,
+    validateBoardgame,
 } from './controllers/boardgameController.js';
 import { findYoutubeOrop } from './controllers/youtubeController.js';
 
@@ -50,6 +52,12 @@ router.post('/orop/ask', validateApiKey, askForOrop);
 router.post('/boardgame', validateApiKey, addBoardgame);
 router.put('/boardgame/:id', validateScribeAccount, updateBoardgame);
 router.delete('/boardgame/:id', validateScribeAccount, deleteBoardgame);
+router.get(
+    '/boardgame/pending',
+    validateScribeAccount,
+    getPendingBoardgameList
+);
+router.get('/boardgame/:id/validate', validateScribeAccount, validateBoardgame);
 router.get('/boardgame/:id/youtube', validateApiKey, findYoutubeOrop);
 
 // Ratings
