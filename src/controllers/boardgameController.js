@@ -86,3 +86,30 @@ export const addBoardgame = async (req, res) => {
         res.status(500).json(error.message);
     }
 };
+
+export const getPendingBoardgameList = async (req, res) => {
+    try {
+        const pendingBoardgames = await Orop.find({ status: 'pending' });
+        res.status(200).json(pendingBoardgames);
+    } catch (error) {
+        console.log('[getPendingBoardgameList] Error', error);
+        res.status(500).json(error.message);
+    }
+};
+
+export const validateBoardgame = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedBoardgame = await Orop.findByIdAndUpdate(
+            id,
+            {
+                $set: { status: 'validated' },
+            },
+            { new: true }
+        );
+        res.status(200).json(updatedBoardgame);
+    } catch (error) {
+        console.log('[validateBoardgame] Error with id : ', id);
+        res.status(500).json(error.message);
+    }
+};
