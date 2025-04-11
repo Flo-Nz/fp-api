@@ -1,4 +1,5 @@
 import { Orop } from '../models/Orop.js';
+import { lookupOropWithUsernames } from '../lib/lookupUsernames.js';
 
 export const updateBoardgame = async (req, res) => {
     try {
@@ -17,22 +18,23 @@ export const updateBoardgame = async (req, res) => {
             sanitizedBody.title = loweredTitles;
         }
 
-        const updatedGame = await Orop.findOneAndUpdate(
+        await Orop.findOneAndUpdate(
             { _id: id },
-            { $set: { ...sanitizedBody, lastUpdatedBy: res.locals.userId } },
-            { new: true }
-        ).populate('discordOrop.ratings.user');
+            { $set: { ...sanitizedBody, lastUpdatedBy: res.locals.userId } }
+        );
+
+        const updatedGame = await lookupOropWithUsernames({ _id: id });
 
         console.log(
             '[updateBoardgame] updated game : ',
-            updatedGame.title?.[0]
+            updatedGame[0].title?.[0]
         );
 
-        if (!updatedGame) {
+        if (!updatedGame[0]) {
             return res.status(404).json('Game not found');
         }
 
-        return res.status(200).json(updatedGame);
+        return res.status(200).json(updatedGame[0]);
     } catch (error) {
         console.log('[updateBoardgame] Error:', error);
         res.status(500).json('Internal server error');
@@ -89,9 +91,9 @@ export const addBoardgame = async (req, res) => {
 
 export const getPendingBoardgameList = async (req, res) => {
     try {
-        const pendingBoardgames = await Orop.find({
+        const pendingBoardgames = await lookupOropWithUsernames({
             status: 'pending',
-        }).populate('discordOrop.ratings.user');
+        });
         res.status(200).json(pendingBoardgames);
     } catch (error) {
         console.log('[getPendingBoardgameList] Error', error);
@@ -102,14 +104,11 @@ export const getPendingBoardgameList = async (req, res) => {
 export const validateBoardgame = async (req, res) => {
     try {
         const { id } = req.params;
-        const updatedBoardgame = await Orop.findByIdAndUpdate(
-            id,
-            {
-                $set: { status: 'validated' },
-            },
-            { new: true }
-        ).populate('discordOrop.ratings.user');
-        res.status(200).json(updatedBoardgame);
+        await Orop.findByIdAndUpdate(id, {
+            $set: { status: 'validated' },
+        });
+        const updatedBoardgame = await lookupOropWithUsernames({ _id: id });
+        res.status(200).json(updatedBoardgame[0]);
     } catch (error) {
         console.log('[validateBoardgame] Error with id : ', id);
         res.status(500).json(error.message);

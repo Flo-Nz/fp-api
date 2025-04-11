@@ -69,9 +69,7 @@ export const getPaginatedOrop = async (req, res) => {
 };
 export const searchOrop = async (req, res) => {
     try {
-        const { title } = req.query;
-        const { oropOnly } = req.query;
-        console.log('orop only', oropOnly);
+        const { title, oropOnly } = req.query;
         if (!title) {
             res.status(400).json('You did not provide a title query parameter');
         }
@@ -83,54 +81,10 @@ export const searchOrop = async (req, res) => {
             filter['fpOrop.youtubeUrl'] = { $exists: true, $ne: '' };
         }
 
-        const orops = await Orop.aggregate([
-            { $match: filter },
-            { $limit: 24 },
-            {
-                $lookup: {
-                    from: 'accounts',
-                    localField: 'discordOrop.ratings.userId',
-                    foreignField: 'userId',
-                    as: 'userDetails',
-                },
-            },
-            {
-                $addFields: {
-                    'discordOrop.ratings': {
-                        $map: {
-                            input: '$discordOrop.ratings',
-                            as: 'rating',
-                            in: {
-                                rating: '$$rating.rating',
-                                userId: '$$rating.userId',
-                                comment: '$$rating.comment',
-                                lastEditedAt: '$$rating.lastEditedAt',
-                                username: {
-                                    $let: {
-                                        vars: {
-                                            user: {
-                                                $first: {
-                                                    $filter: {
-                                                        input: '$userDetails',
-                                                        cond: {
-                                                            $eq: [
-                                                                '$$this.userId',
-                                                                '$$rating.userId',
-                                                            ],
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        },
-                                        in: '$$user.username',
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        ]);
+        const orops = await Orop.aggregate(
+            addUsernamesToAggregation([{ $match: filter }, { $limit: 24 }])
+        );
+
         const sortedOrops = sortOropByTitle(orops);
         res.status(200).json(sortedOrops);
     } catch (error) {
@@ -154,50 +108,7 @@ export const getTopSearchedOrop = async (req, res) => {
             {
                 $limit: limit && limit <= 30 ? limit : 10,
             },
-            {
-                $lookup: {
-                    from: 'accounts',
-                    localField: 'discordOrop.ratings.userId',
-                    foreignField: 'userId',
-                    as: 'userDetails',
-                },
-            },
-            {
-                $addFields: {
-                    'discordOrop.ratings': {
-                        $map: {
-                            input: '$discordOrop.ratings',
-                            as: 'rating',
-                            in: {
-                                rating: '$$rating.rating',
-                                userId: '$$rating.userId',
-                                comment: '$$rating.comment',
-                                lastEditedAt: '$$rating.lastEditedAt',
-                                username: {
-                                    $let: {
-                                        vars: {
-                                            user: {
-                                                $first: {
-                                                    $filter: {
-                                                        input: '$userDetails',
-                                                        cond: {
-                                                            $eq: [
-                                                                '$$this.userId',
-                                                                '$$rating.userId',
-                                                            ],
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        },
-                                        in: '$$user.username',
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+            ...addUsernamesToAggregation([]),
         ]);
         console.log('[getTopSearchedOrop] returning top with params: ', {
             limit,
@@ -216,117 +127,23 @@ export const getTopRatedOrop = async (req, res) => {
         const { limit, onlyFP, sliceStart, sliceEnd } = req.query;
 
         if (onlyFP === 'true') {
-            const topFpRatedOrop = await Orop.aggregate([
-                { $match: { 'fpOrop.rating': { $exists: true } } },
-                {
-                    $sort: { 'fpOrop.rating': -1 },
-                },
-                {
-                    $limit: limit && limit <= 30 ? limit : 10,
-                },
-                {
-                    $lookup: {
-                        from: 'accounts',
-                        localField: 'discordOrop.ratings.userId',
-                        foreignField: 'userId',
-                        as: 'userDetails',
-                    },
-                },
-                {
-                    $addFields: {
-                        'discordOrop.ratings': {
-                            $map: {
-                                input: '$discordOrop.ratings',
-                                as: 'rating',
-                                in: {
-                                    rating: '$$rating.rating',
-                                    userId: '$$rating.userId',
-                                    comment: '$$rating.comment',
-                                    lastEditedAt: '$$rating.lastEditedAt',
-                                    username: {
-                                        $let: {
-                                            vars: {
-                                                user: {
-                                                    $first: {
-                                                        $filter: {
-                                                            input: '$userDetails',
-                                                            cond: {
-                                                                $eq: [
-                                                                    '$$this.userId',
-                                                                    '$$rating.userId',
-                                                                ],
-                                                            },
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                            in: '$$user.username',
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            ]);
+            const topFpRatedOrop = await Orop.aggregate(
+                addUsernamesToAggregation([
+                    { $match: { 'fpOrop.rating': { $exists: true } } },
+                    { $sort: { 'fpOrop.rating': -1 } },
+                    { $limit: limit && limit <= 30 ? limit : 10 },
+                ])
+            );
             console.log('[getTopRatedOrop] returning FP TOP');
             return res.status(200).json(topFpRatedOrop);
         }
 
-        const topRatedOrop = await Orop.aggregate([
-            { $match: { 'discordOrop.ratings.1': { $exists: true } } },
-            {
-                $project: {
-                    title: 1,
-                    discordOrop: 1,
-                    discordRating: 1,
-                },
-            },
-            {
-                $lookup: {
-                    from: 'accounts',
-                    localField: 'discordOrop.ratings.userId',
-                    foreignField: 'userId',
-                    as: 'userDetails',
-                },
-            },
-            {
-                $addFields: {
-                    'discordOrop.ratings': {
-                        $map: {
-                            input: '$discordOrop.ratings',
-                            as: 'rating',
-                            in: {
-                                rating: '$$rating.rating',
-                                userId: '$$rating.userId',
-                                comment: '$$rating.comment',
-                                lastEditedAt: '$$rating.lastEditedAt',
-                                username: {
-                                    $let: {
-                                        vars: {
-                                            user: {
-                                                $first: {
-                                                    $filter: {
-                                                        input: '$userDetails',
-                                                        cond: {
-                                                            $eq: [
-                                                                '$$this.userId',
-                                                                '$$rating.userId',
-                                                            ],
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        },
-                                        in: '$$user.username',
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        ]);
+        const topRatedOrop = await Orop.aggregate(
+            addUsernamesToAggregation([
+                { $match: { 'discordOrop.ratings.1': { $exists: true } } },
+                { $project: { title: 1, discordOrop: 1, discordRating: 1 } },
+            ])
+        );
 
         const sortedTopRatedOrop = topRatedOrop
             .sort((a, b) => {
@@ -570,81 +387,33 @@ export const getAllUserRatings = async (req, res) => {
         const { userId } = res.locals;
         const { skip, noLimit } = query;
         if (!userId) {
-            console.warn('[getAllUserRatings] Bad request', {
-                userId,
-            });
+            console.warn('[getAllUserRatings] Bad request', { userId });
             return res
                 .status(400)
                 .json(`Missing required query parameter (userId)`);
         }
 
-        const userOrops = await Orop.aggregate([
-            { $match: { 'discordOrop.ratings.userId': userId } },
-            {
-                $addFields: {
-                    firstTitleElement: { $arrayElemAt: ['$title', 0] },
+        const userOrops = await Orop.aggregate(
+            addUsernamesToAggregation([
+                { $match: { 'discordOrop.ratings.userId': userId } },
+                {
+                    $addFields: {
+                        firstTitleElement: { $arrayElemAt: ['$title', 0] },
+                    },
                 },
-            },
-            {
-                $addFields: {
-                    firstTitleElementLower: { $toLower: '$firstTitleElement' },
-                },
-            },
-            { $addFields: { id: { $toString: '$_id' } } }, // Add the id field as a string
-            { $sort: { firstTitleElementLower: 1 } },
-            { $skip: skip || 0 }, // Ensure skip is a number
-            { $limit: noLimit ? Number.MAX_SAFE_INTEGER : 12 }, // Use a large number if noLimit is true
-            {
-                $lookup: {
-                    from: 'accounts',
-                    localField: 'discordOrop.ratings.userId',
-                    foreignField: 'userId',
-                    as: 'userDetails',
-                },
-            },
-            {
-                $addFields: {
-                    'discordOrop.ratings': {
-                        $map: {
-                            input: '$discordOrop.ratings',
-                            as: 'rating',
-                            in: {
-                                $mergeObjects: [
-                                    {
-                                        rating: '$$rating.rating',
-                                        userId: '$$rating.userId',
-                                        comment: '$$rating.comment',
-                                        lastEditedAt: '$$rating.lastEditedAt',
-                                    },
-                                    {
-                                        username: {
-                                            $let: {
-                                                vars: {
-                                                    user: {
-                                                        $first: {
-                                                            $filter: {
-                                                                input: '$userDetails',
-                                                                cond: {
-                                                                    $eq: [
-                                                                        '$$this.userId',
-                                                                        '$$rating.userId',
-                                                                    ],
-                                                                },
-                                                            },
-                                                        },
-                                                    },
-                                                },
-                                                in: '$$user.username',
-                                            },
-                                        },
-                                    },
-                                ],
-                            },
+                {
+                    $addFields: {
+                        firstTitleElementLower: {
+                            $toLower: '$firstTitleElement',
                         },
                     },
                 },
-            },
-        ]);
+                { $addFields: { id: { $toString: '$_id' } } },
+                { $sort: { firstTitleElementLower: 1 } },
+                { $skip: skip || 0 },
+                { $limit: noLimit ? Number.MAX_SAFE_INTEGER : 12 },
+            ])
+        );
 
         const userOropsWithVirtuals = addVirtuals(userOrops);
 
@@ -760,83 +529,21 @@ export const askForOrop = async (req, res) => {
 
 export const getTopAskedOrop = async (req, res) => {
     try {
-        const topAskedOrop = await Orop.aggregate([
-            {
-                $match: {
-                    'fpOrop.youtubeUrl': {
-                        $exists: false,
-                    },
-                    'askedBy.0': {
-                        $exists: true,
+        const topAskedOrop = await Orop.aggregate(
+            addUsernamesToAggregation([
+                {
+                    $match: {
+                        'fpOrop.youtubeUrl': { $exists: false },
+                        'askedBy.0': { $exists: true },
                     },
                 },
-            },
-            {
-                $addFields: {
-                    askedByCount: {
-                        $size: '$askedBy',
-                    },
+                {
+                    $addFields: { askedByCount: { $size: '$askedBy' } },
                 },
-            },
-            {
-                $sort: {
-                    askedByCount: -1,
-                },
-            },
-            {
-                $limit: 20,
-            },
-            {
-                $lookup: {
-                    from: 'accounts',
-                    localField: 'discordOrop.ratings.userId',
-                    foreignField: 'userId',
-                    as: 'userDetails',
-                },
-            },
-            {
-                $addFields: {
-                    'discordOrop.ratings': {
-                        $map: {
-                            input: '$discordOrop.ratings',
-                            as: 'rating',
-                            in: {
-                                $mergeObjects: [
-                                    {
-                                        rating: '$$rating.rating',
-                                        userId: '$$rating.userId',
-                                        comment: '$$rating.comment',
-                                        lastEditedAt: '$$rating.lastEditedAt',
-                                    },
-                                    {
-                                        username: {
-                                            $let: {
-                                                vars: {
-                                                    user: {
-                                                        $first: {
-                                                            $filter: {
-                                                                input: '$userDetails',
-                                                                cond: {
-                                                                    $eq: [
-                                                                        '$$this.userId',
-                                                                        '$$rating.userId',
-                                                                    ],
-                                                                },
-                                                            },
-                                                        },
-                                                    },
-                                                },
-                                                in: '$$user.username',
-                                            },
-                                        },
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                },
-            },
-        ]);
+                { $sort: { askedByCount: -1 } },
+                { $limit: 20 },
+            ])
+        );
         const topAskedOropWithVirtuals = addVirtuals(topAskedOrop);
         return res.status(200).json(topAskedOropWithVirtuals);
     } catch (error) {
