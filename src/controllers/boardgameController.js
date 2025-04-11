@@ -21,7 +21,7 @@ export const updateBoardgame = async (req, res) => {
             { _id: id },
             { $set: { ...sanitizedBody, lastUpdatedBy: res.locals.userId } },
             { new: true }
-        );
+        ).populate('discordOrop.ratings.user');
 
         console.log(
             '[updateBoardgame] updated game : ',
@@ -89,7 +89,9 @@ export const addBoardgame = async (req, res) => {
 
 export const getPendingBoardgameList = async (req, res) => {
     try {
-        const pendingBoardgames = await Orop.find({ status: 'pending' });
+        const pendingBoardgames = await Orop.find({
+            status: 'pending',
+        }).populate('discordOrop.ratings.user');
         res.status(200).json(pendingBoardgames);
     } catch (error) {
         console.log('[getPendingBoardgameList] Error', error);
@@ -106,7 +108,7 @@ export const validateBoardgame = async (req, res) => {
                 $set: { status: 'validated' },
             },
             { new: true }
-        );
+        ).populate('discordOrop.ratings.user');
         res.status(200).json(updatedBoardgame);
     } catch (error) {
         console.log('[validateBoardgame] Error with id : ', id);
