@@ -37,7 +37,6 @@ export const getDiscordAccount = async (req, res) => {
                 }
             );
             const discordUser = await userResult.body.json();
-            console.log('DISCORD USER', discordUser);
             const userAvatar = `https://cdn.discordapp.com/avatars/${discordUser?.id}/${discordUser?.avatar}.png`;
 
             const fpMemberResult = await request(
@@ -49,7 +48,6 @@ export const getDiscordAccount = async (req, res) => {
                 }
             );
             const discordMember = await fpMemberResult.body.json();
-            console.log('DISCORD MEMBER', discordMember);
 
             let user;
             user = await Account.findOneAndUpdate(
@@ -133,7 +131,6 @@ export const getGoogleAccount = async (req, res) => {
             });
             const userInfo = await googleApi.userinfo.get();
             const { id, given_name, picture } = userInfo?.data;
-            console.log('picture', picture);
 
             let user;
             user = await Account.findOneAndUpdate(
@@ -197,7 +194,6 @@ export const getUserInformations = async (req, res) => {
                 .status(404)
                 .json(`User with apikey ${apikey} not found.`);
         }
-        console.log('user', user);
         return res.status(200).json(user);
     } catch (error) {
         return res
