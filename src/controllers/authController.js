@@ -28,7 +28,6 @@ export const getDiscordAccount = async (req, res) => {
                 }
             );
             const oauthData = await tokenResponseData.body.json();
-            console.log('OAUTH DATA', oauthData);
             const userResult = await request(
                 'https://discord.com/api/users/@me',
                 {
@@ -38,7 +37,8 @@ export const getDiscordAccount = async (req, res) => {
                 }
             );
             const discordUser = await userResult.body.json();
-            console.log('USER RESULT', discordUser);
+            console.log('DISCORD USER', discordUser);
+            const userAvatar = `https://cdn.discordapp.com/avatars/${discordUser?.id}/${discordUser?.avatar}.png`;
 
             const fpMemberResult = await request(
                 'https://discord.com/api/users/@me/guilds/933486333756846101/member',
@@ -54,25 +54,30 @@ export const getDiscordAccount = async (req, res) => {
             let user;
             user = await Account.findOneAndUpdate(
                 {
-                    'discord.id': discordMember.user.id,
+                    userId: discordMember.user.id,
                 },
                 {
                     username: discordMember.user.username,
+                    avatar: userAvatar,
                     'discord.access_token': oauthData.access_token,
                     'discord.refresh_token': oauthData.refresh_token,
-                    expires_at: addMilliseconds(
+                    'discord.expires_at': addMilliseconds(
                         new Date(),
                         oauthData.expires_in
                     ),
                     type: 'discord',
+                    'discord.id': discordMember.user.id,
+                    'discord.roles': discordMember.roles,
                 },
                 { new: true }
             );
             if (!user) {
                 user = await Account.create({
+                    userId: discordMember.user.id,
                     username: discordMember.user.username,
                     apikey: uuid(),
                     type: 'discord',
+                    avatar: userAvatar,
                     discord: {
                         id: discordMember.user.id,
                         roles: discordMember.roles,
@@ -96,7 +101,6 @@ export const getDiscordAccount = async (req, res) => {
 
             return res.redirect(`${process.env.FRONT_URL}?jwt=${userJwt}`);
         } else {
-            return res.status(400).json("You didn't provide a valid code");
         }
     } catch (error) {
         return res.status(500).json(error.message);
@@ -128,26 +132,32 @@ export const getGoogleAccount = async (req, res) => {
                 version: 'v2',
             });
             const userInfo = await googleApi.userinfo.get();
-            const { id, given_name } = userInfo?.data;
+            const { id, given_name, picture } = userInfo?.data;
+            console.log('picture', picture);
 
             let user;
             user = await Account.findOneAndUpdate(
                 {
-                    'google.id': id,
+                    userId: id,
                 },
                 {
                     username: given_name,
+                    avatar: picture,
                     'google.access_token': access_token,
                     'google.refresh_token': refresh_token,
-                    expires_at: new Date(expires_at),
+                    'google.expires_at': new Date(expires_at),
+                    type: 'google',
+                    'google.id': id,
                 },
                 { new: true }
             );
             if (!user) {
                 user = await Account.create({
-                    username: given_name,
+                    userId: id,
                     apikey: uuid(),
                     type: 'google',
+                    username: given_name,
+                    avatar: picture,
                     google: {
                         id,
                         access_token,

@@ -33,44 +33,55 @@ const findTimestamp = (title, desc) => {
     }
 };
 
+const matchVideoWithTitle = (video, searchTitle) => {
+    const title = deburr(video.snippet?.title?.toLowerCase() || '');
+    const description = deburr(video.snippet?.description?.toLowerCase() || '');
+    const searchTitleLower = deburr(searchTitle.toLowerCase());
+
+    return (
+        includes(title, searchTitleLower) ||
+        includes(description, searchTitleLower)
+    );
+};
+
+const buildFpOrop = (video, title) => {
+    const timestamp = findTimestamp(title, video.snippet.description);
+
+    return {
+        publishedDate: moment(video.snippet.publishedAt).format('L'),
+        videoTitle: video.snippet.title,
+        thumbnail: video.snippet.thumbnails.medium.url,
+        timestamp,
+        youtubeUrl: `https://www.youtube.com/watch?v=${
+            video.snippet.resourceId.videoId
+        }&list=${process.env.FP_OROP_PLAYLIST_ID}${
+            timestamp ? `&t=${timestamp}s` : ''
+        }`,
+    };
+};
+
 const getYoutubeOrop = async (title, pageToken) => {
     try {
-        const fpOrop = {};
         const oropPage = await getPlaylist(pageToken);
-        for (const item of get(oropPage, 'items')) {
-            // If an OROP is find in the current page of the playlist
-            if (
-                includes(deburr(item.snippet?.title.toLowerCase()), title) ||
-                includes(deburr(item.snippet?.description.toLowerCase()), title)
-            ) {
-                fpOrop.publishedDate = moment(item.snippet.publishedAt).format(
-                    'L'
-                );
-                fpOrop.videoTitle = item.snippet.title;
-                fpOrop.thumbnail = item.snippet.thumbnails.medium.url;
-                const timestamp = findTimestamp(
-                    title,
-                    item.snippet.description
-                );
-                if (timestamp) {
-                    fpOrop.timestamp = timestamp;
-                }
-                fpOrop.youtubeUrl = `https://www.youtube.com/watch?v=${
-                    item.snippet.resourceId.videoId
-                }&list=${process.env.FP_OROP_PLAYLIST_ID}${
-                    timestamp ? `&t=${timestamp}s` : ''
-                }`;
+        const items = get(oropPage, 'items', []);
 
-                return fpOrop;
-            }
+        // Find matching video in current page
+        const matchingVideo = items.find((item) =>
+            matchVideoWithTitle(item, title)
+        );
+
+        if (matchingVideo) {
+            return buildFpOrop(matchingVideo, title);
         }
-        if (isEmpty(fpOrop) && oropPage.nextPageToken) {
+
+        // Recursively check next page if exists
+        if (oropPage.nextPageToken) {
             return getYoutubeOrop(title, oropPage.nextPageToken);
-        } else {
-            return;
         }
+
+        return null;
     } catch (error) {
-        throw new Error(`Something Went Wrong, ${error.message}`);
+        throw new Error(`Failed to fetch YouTube OROP: ${error.message}`);
     }
 };
 
@@ -87,7 +98,7 @@ export const findYoutubeOrop = async (req, res) => {
         // Trying for each title of the OROP document title array to find an OROP on Youtube
         for (const title of orop.title) {
             const fpOrop = await getYoutubeOrop(title);
-            if (fpOrop) {
+            if (fpOrop !== null) {
                 const updateFields = Object.keys(fpOrop).reduce((acc, key) => {
                     acc[`fpOrop.${key}`] = fpOrop[key];
                     return acc;

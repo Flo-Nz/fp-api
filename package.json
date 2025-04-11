@@ -8,7 +8,8 @@
     "license": "MIT",
     "type": "module",
     "scripts": {
-        "start": "node src/index.js"
+        "start": "node src/index.js",
+        "migrate:userids": "node src/scripts/migrateUserIds.js"
     },
     "dependencies": {
         "axios": "1.8.4",
