@@ -51,10 +51,7 @@ router.get('/orop/top/asked', validateApiKey, getTopAskedOrop);
 
 // Interact with boardgames / orops
 router.post('/orop/ask', validateApiKey, askForOrop);
-router.get('/boardgame/:id', validateApiKey, getOneBoardgame);
 router.post('/boardgame', validateApiKey, addBoardgame);
-router.put('/boardgame/:id', validateScribeAccount, updateBoardgame);
-router.delete('/boardgame/:id', validateScribeAccount, deleteBoardgame);
 router.get(
     '/boardgame/pending',
     validateScribeAccount,
@@ -62,6 +59,9 @@ router.get(
 );
 router.get('/boardgame/:id/validate', validateScribeAccount, validateBoardgame);
 router.get('/boardgame/:id/youtube', validateApiKey, findYoutubeOrop);
+router.get('/boardgame/:id', validateApiKey, getOneBoardgame);
+router.put('/boardgame/:id', validateScribeAccount, updateBoardgame);
+router.delete('/boardgame/:id', validateScribeAccount, deleteBoardgame);
 
 // Ratings
 // Yoel
