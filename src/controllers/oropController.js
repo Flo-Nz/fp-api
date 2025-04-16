@@ -86,7 +86,7 @@ export const searchOrop = async (req, res) => {
         );
 
         const sortedOrops = sortOropByTitle(orops);
-        res.status(200).json(sortedOrops);
+        res.status(200).json(addVirtuals(sortedOrops));
     } catch (error) {
         console.log('[searchOrop] error : ', error);
         res.status(500).json('Something went wrong');
@@ -245,7 +245,7 @@ export const upsertFpOrop = async (req, res) => {
 export const upsertFpOropRating = async (req, res) => {
     try {
         const { body } = req;
-        const { title, rating, comment } = body;
+        const { title, rating, review } = body;
         if (!title || !rating) {
             return res.status(400).json(`Missing title or rating`);
         }
@@ -254,8 +254,8 @@ export const upsertFpOropRating = async (req, res) => {
             'fpOrop.rating': parseInt(rating),
         };
 
-        if (comment) {
-            updateFields['fpOrop.comment'] = comment;
+        if (review) {
+            updateFields['fpOrop.review'] = review;
         }
 
         const orop = await Orop.findOneAndUpdate(
@@ -276,14 +276,14 @@ export const upsertDiscordOrop = async (req, res) => {
     try {
         const { userId } = res.locals;
         const { body } = req;
-        const { title, rating, comment, skipSearchInc } = body;
+        const { title, rating, review, skipSearchInc } = body;
 
         if (!title || !userId) {
             console.warn('[upsertDiscordOrop] Bad request', {
                 title,
                 userId,
                 rating,
-                comment,
+                review,
             });
             return res
                 .status(400)
@@ -299,8 +299,8 @@ export const upsertDiscordOrop = async (req, res) => {
         const updateFields = {
             'discordOrop.ratings.$[elem].rating': rating,
         };
-        if (comment) {
-            updateFields['discordOrop.ratings.$[elem].comment'] = comment;
+        if (review) {
+            updateFields['discordOrop.ratings.$[elem].review'] = review;
         }
 
         const orop = await Orop.findOneAndUpdate(
@@ -331,8 +331,8 @@ export const upsertDiscordOrop = async (req, res) => {
             userId,
             rating,
         };
-        if (comment) {
-            pushFields.comment = comment;
+        if (review) {
+            pushFields.review = review;
         }
 
         const newRatingOrop = await Orop.findOneAndUpdate(
@@ -435,14 +435,14 @@ export const removeUserRating = async (req, res) => {
         const { title } = req.query;
 
         const rating = req.query.rating === 'true' ? true : false;
-        const comment = req.query.comment === 'true' ? true : false;
+        const review = req.query.review === 'true' ? true : false;
 
         if (!title || !userId) {
             return res.status(400).json('Missing title or userId');
         }
 
-        if (!rating && !comment) {
-            return res.status(400).json('No comment or rating');
+        if (!rating && !review) {
+            return res.status(400).json('No review or rating');
         }
 
         // Find the user's rating
@@ -461,9 +461,9 @@ export const removeUserRating = async (req, res) => {
 
         // Determine if we need to remove the entire rating object
         const removeEntireObject =
-            (rating && comment) ||
-            (rating && !userRating.comment) ||
-            (comment && !userRating.rating);
+            (rating && review) ||
+            (rating && !userRating.review) ||
+            (review && !userRating.rating);
 
         if (removeEntireObject) {
             await Orop.updateOne(
@@ -481,8 +481,8 @@ export const removeUserRating = async (req, res) => {
         if (rating) {
             updateFields['discordOrop.ratings.$[elem].rating'] = '';
         }
-        if (comment) {
-            updateFields['discordOrop.ratings.$[elem].comment'] = '';
+        if (review) {
+            updateFields['discordOrop.ratings.$[elem].review'] = '';
         }
 
         await Orop.updateOne(
@@ -571,6 +571,41 @@ export const getOneDayOneGame = async (req, res) => {
         }
 
         return res.status(404).json('No boardgame for today');
+    } catch (error) {
+        return res.status(500).json(error.message);
+    }
+};
+
+export const removeReview = async (req, res) => {
+    try {
+        const { title, userId } = req.query;
+
+        if (!title || !userId) {
+            return res.status(400).json('Missing title or userId');
+        }
+
+        const orop = await Orop.findOneAndUpdate(
+            {
+                title: { $elemMatch: { $eq: title } },
+                'discordOrop.ratings.userId': userId,
+            },
+            {
+                $unset: { 'discordOrop.ratings.$[elem].review': '' },
+            },
+            {
+                arrayFilters: [{ 'elem.userId': userId }],
+                new: true,
+            }
+        );
+
+        if (!orop) {
+            return res.status(404).json('Rating not found');
+        }
+
+        console.log(
+            `[RemoveReview] Removed review from ${title} for userId ${userId}`
+        );
+        return res.status(200).json('Review removed successfully');
     } catch (error) {
         return res.status(500).json(error.message);
     }

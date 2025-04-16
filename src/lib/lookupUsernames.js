@@ -41,7 +41,7 @@ export const lookupOropWithUsernames = async (query, options = {}) => {
                 (rating) => ({
                     rating: rating.rating,
                     userId: rating.userId,
-                    comment: rating.comment,
+                    review: rating.review,
                     lastEditedAt: rating.lastEditedAt,
                     username: userMap.get(rating.userId)?.username || null,
                     avatar: userMap.get(rating.userId)?.avatar || null,
@@ -74,7 +74,7 @@ export const addUsernamesToAggregation = (pipeline = []) => {
                         in: {
                             rating: '$$rating.rating',
                             userId: '$$rating.userId',
-                            comment: '$$rating.comment',
+                            review: '$$rating.review',
                             lastEditedAt: '$$rating.lastEditedAt',
                             username: {
                                 $let: {

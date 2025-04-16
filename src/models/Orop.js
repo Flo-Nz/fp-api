@@ -8,7 +8,7 @@ const FpOropSchema = new mongoose.Schema(
         rating: { type: Number },
         videoTitle: { type: String },
         thumbnail: { type: String },
-        comment: { type: String },
+        review: { type: String },
         lastEditedAt: { type: Date },
     },
     { _id: false }
@@ -20,8 +20,9 @@ const DiscordOropSchema = new mongoose.Schema(
             {
                 rating: Number,
                 userId: { type: String, ref: 'Account' },
-                comment: String,
+                review: String,
                 lastEditedAt: Date,
+                reported: { type: Boolean, default: false },
             },
         ],
     },

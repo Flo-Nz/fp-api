@@ -1,5 +1,6 @@
 import { Orop } from '../models/Orop.js';
 import { lookupOropWithUsernames } from '../lib/lookupUsernames.js';
+import { addVirtuals } from '../lib/addVirtuals.js';
 
 export const updateBoardgame = async (req, res) => {
     try {
@@ -112,5 +113,53 @@ export const validateBoardgame = async (req, res) => {
     } catch (error) {
         console.log('[validateBoardgame] Error with id : ', id);
         res.status(500).json(error.message);
+    }
+};
+
+export const getOneBoardgame = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { sortBy, filterRating, order = 'desc' } = req.query;
+
+        const orop = await lookupOropWithUsernames({ _id: id });
+        if (!orop?.[0]) {
+            return res.status(404).json({ message: 'Boardgame not found' });
+        }
+
+        const boardgame = orop[0];
+        let ratings = boardgame.discordOrop?.ratings || [];
+
+        // Apply rating filter if specified
+        if (filterRating) {
+            ratings = ratings.filter(
+                (r) => r.rating === parseInt(filterRating)
+            );
+        }
+
+        // Apply sorting with order
+        if (sortBy === 'rating') {
+            ratings.sort((a, b) =>
+                order === 'desc' ? b.rating - a.rating : a.rating - b.rating
+            );
+        } else {
+            // Default sort by lastEditedAt
+            ratings.sort((a, b) => {
+                const comparison =
+                    new Date(b.lastEditedAt) - new Date(a.lastEditedAt);
+                return order === 'desc' ? comparison : -comparison;
+            });
+        }
+
+        const response = {
+            ...boardgame,
+            discordOrop: {
+                ...boardgame.discordOrop,
+                ratings,
+            },
+        };
+
+        return res.json(addVirtuals([response])[0]);
+    } catch (error) {
+        return res.status(500).json({ message: error.message });
     }
 };

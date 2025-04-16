@@ -13,6 +13,7 @@ import {
     upsertDiscordOrop,
     upsertFpOrop,
     upsertFpOropRating,
+    removeReview,
 } from './controllers/oropController.js';
 import {
     validateApiKey,
@@ -30,6 +31,7 @@ import {
     getPendingBoardgameList,
     updateBoardgame,
     validateBoardgame,
+    getOneBoardgame,
 } from './controllers/boardgameController.js';
 import { findYoutubeOrop } from './controllers/youtubeController.js';
 
@@ -49,6 +51,7 @@ router.get('/orop/top/asked', validateApiKey, getTopAskedOrop);
 
 // Interact with boardgames / orops
 router.post('/orop/ask', validateApiKey, askForOrop);
+router.get('/boardgame/:id', validateApiKey, getOneBoardgame);
 router.post('/boardgame', validateApiKey, addBoardgame);
 router.put('/boardgame/:id', validateScribeAccount, updateBoardgame);
 router.delete('/boardgame/:id', validateScribeAccount, deleteBoardgame);
@@ -67,6 +70,7 @@ router.post('/fporop/rating', validateApiKey, upsertFpOropRating);
 // users
 router.post('/discordorop', validateApiKey, upsertDiscordOrop);
 router.put('/discordorop/ratings/remove', validateApiKey, removeUserRating);
+router.put('/discordorop/reviews/remove', validateScribeAccount, removeReview);
 router.get('/discordorop/ratings', validateApiKey, getAllUserRatings);
 
 // Endpoint only use by Discord Bot
