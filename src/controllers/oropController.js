@@ -28,7 +28,6 @@ export const getPaginatedOrop = async (req, res) => {
                     firstTitleElementLower: { $toLower: '$firstTitleElement' },
                 },
             },
-            { $addFields: { id: { $toString: '$_id' } } },
             ...(oropOnly
                 ? [
                       {
@@ -408,7 +407,6 @@ export const getAllUserRatings = async (req, res) => {
                         },
                     },
                 },
-                { $addFields: { id: { $toString: '$_id' } } },
                 { $sort: { firstTitleElementLower: 1 } },
                 { $skip: skip || 0 },
                 { $limit: noLimit ? Number.MAX_SAFE_INTEGER : 12 },

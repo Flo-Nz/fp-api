@@ -1,11 +1,16 @@
+import mongoose from 'mongoose';
 import { Orop } from '../models/Orop.js';
 import { Account } from '../models/Account.js';
 
 export const lookupOropWithUsernames = async (query, options = {}) => {
     const { limit, skip, sort } = options;
 
-    // First get the orops
-    const orops = await Orop.find(query).sort(sort).skip(skip).limit(limit);
+    const orops = await Orop.aggregate([
+        { $match: query },
+        ...(sort ? [{ $sort: sort }] : []),
+        ...(skip ? [{ $skip: skip }] : []),
+        ...(limit ? [{ $limit: limit }] : []),
+    ]);
 
     // Get unique userIds from all ratings
     const userIds = [
@@ -35,7 +40,7 @@ export const lookupOropWithUsernames = async (query, options = {}) => {
 
     // Map the results
     const oropsWithUserDetails = orops.map((orop) => {
-        const oropObj = orop.toObject({ virtuals: true });
+        const oropObj = { ...orop }; // Create a shallow copy to avoid modifying the original
         if (oropObj.discordOrop?.ratings) {
             oropObj.discordOrop.ratings = oropObj.discordOrop.ratings.map(
                 (rating) => ({
@@ -48,7 +53,10 @@ export const lookupOropWithUsernames = async (query, options = {}) => {
                 })
             );
         }
-        return oropObj;
+        return {
+            ...oropObj,
+            id: oropObj.id || oropObj._id?.toString(), // Ensure id is always present
+        };
     });
 
     return oropsWithUserDetails;
@@ -57,6 +65,7 @@ export const lookupOropWithUsernames = async (query, options = {}) => {
 export const addUsernamesToAggregation = (pipeline = []) => {
     return [
         ...pipeline,
+        { $addFields: { id: { $toString: '$_id' } } },
         {
             $lookup: {
                 from: 'accounts',

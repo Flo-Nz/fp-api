@@ -121,7 +121,9 @@ export const getOneBoardgame = async (req, res) => {
         const { id } = req.params;
         const { sortBy, filterRating, order = 'desc' } = req.query;
 
-        const orop = await lookupOropWithUsernames({ _id: id });
+        const orop = await lookupOropWithUsernames({
+            _id: new mongoose.Types.ObjectId(id),
+        });
         if (!orop?.[0]) {
             return res.status(404).json({ message: 'Boardgame not found' });
         }
