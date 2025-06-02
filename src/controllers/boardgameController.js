@@ -1,6 +1,7 @@
 import { Orop } from '../models/Orop.js';
 import { lookupOropWithUsernames } from '../lib/lookupUsernames.js';
 import { addVirtuals } from '../lib/addVirtuals.js';
+import { Types } from 'mongoose';
 
 export const updateBoardgame = async (req, res) => {
     try {
@@ -24,7 +25,9 @@ export const updateBoardgame = async (req, res) => {
             { $set: { ...sanitizedBody, lastUpdatedBy: res.locals.userId } }
         );
 
-        const updatedGame = await lookupOropWithUsernames({ _id: id });
+        const updatedGame = await lookupOropWithUsernames({
+            _id: Types.ObjectId.createFromHexString(id),
+        });
 
         console.log(
             '[updateBoardgame] updated game : ',
@@ -108,7 +111,9 @@ export const validateBoardgame = async (req, res) => {
         await Orop.findByIdAndUpdate(id, {
             $set: { status: 'validated' },
         });
-        const updatedBoardgame = await lookupOropWithUsernames({ _id: id });
+        const updatedBoardgame = await lookupOropWithUsernames({
+            _id: Types.ObjectId.createFromHexString(id),
+        });
         res.status(200).json(updatedBoardgame[0]);
     } catch (error) {
         console.log('[validateBoardgame] Error with id : ', id);
@@ -120,10 +125,11 @@ export const getOneBoardgame = async (req, res) => {
     try {
         const { id } = req.params;
         const { sortBy, filterRating, order = 'desc' } = req.query;
-
+        console.log('id', id);
         const orop = await lookupOropWithUsernames({
-            _id: new mongoose.Types.ObjectId(id),
+            _id: Types.ObjectId.createFromHexString(id),
         });
+        console.log('orop', orop);
         if (!orop?.[0]) {
             return res.status(404).json({ message: 'Boardgame not found' });
         }
