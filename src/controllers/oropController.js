@@ -183,11 +183,11 @@ export const getOneOrop = async (req, res) => {
 
         if (orops.length > 0) {
             const orop = orops[0];
-            await Orop.findOneAndUpdate(
+            const newOrop = await Orop.findOneAndUpdate(
                 { _id: orop._id },
                 { $inc: { searchCount: skipSearchInc === 'true' ? 0 : 1 } }
             );
-            return res.status(200).json(orop);
+            return res.status(200).json(newOrop);
         }
 
         console.warn('[getOneOrop] No Orop found with query', query);
