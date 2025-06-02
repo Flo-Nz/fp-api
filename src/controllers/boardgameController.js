@@ -125,11 +125,9 @@ export const getOneBoardgame = async (req, res) => {
     try {
         const { id } = req.params;
         const { sortBy, filterRating, order = 'desc' } = req.query;
-        console.log('id', id);
         const orop = await lookupOropWithUsernames({
             _id: Types.ObjectId.createFromHexString(id),
         });
-        console.log('orop', orop);
         if (!orop?.[0]) {
             return res.status(404).json({ message: 'Boardgame not found' });
         }
