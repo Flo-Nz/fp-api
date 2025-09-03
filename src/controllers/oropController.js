@@ -391,6 +391,8 @@ export const getAllUserRatings = async (req, res) => {
                 .status(400)
                 .json(`Missing required query parameter (userId)`);
         }
+        console.log('[GetAllUserRatings] Getting ratings for', userId);
+        console.log('[GetAllUserRatings] With params', { skip, noLimit });
 
         const userOrops = await Orop.aggregate(
             addUsernamesToAggregation([
@@ -408,7 +410,7 @@ export const getAllUserRatings = async (req, res) => {
                     },
                 },
                 { $sort: { firstTitleElementLower: 1 } },
-                { $skip: skip || 0 },
+                { $skip: parseInt(skip) || 0 },
                 { $limit: noLimit ? Number.MAX_SAFE_INTEGER : 12 },
             ])
         );
