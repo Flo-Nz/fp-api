@@ -2,9 +2,7 @@ import { get, keys, map, omit } from 'lodash-es';
 import { Orop } from '../models/Orop.js';
 import { isValidFpOrop } from '../services/validateOrop.js';
 import { sortOropByTitle } from '../lib/sort.js';
-import { addVirtuals } from '../lib/addVirtuals.js';
 import {
-    lookupOropWithUsernames,
     addUsernamesToAggregation,
 } from '../lib/lookupUsernames.js';
 
@@ -46,8 +44,6 @@ export const getPaginatedOrop = async (req, res) => {
             addUsernamesToAggregation(basePipeline)
         );
 
-        const allOropWithVirtuals = addVirtuals(allOrop);
-
         const totalDocuments = oropOnly
             ? await Orop.countDocuments({
                   'fpOrop.youtubeUrl': { $exists: true, $ne: '' },
@@ -55,7 +51,7 @@ export const getPaginatedOrop = async (req, res) => {
             : await Orop.countDocuments(); // Get the total number of documents
 
         return res.status(200).json({
-            data: allOropWithVirtuals,
+            data: allOrop,
             currentPage: page,
             totalPages: Math.ceil(totalDocuments / limit),
             totalDocuments: totalDocuments,
@@ -85,7 +81,7 @@ export const searchOrop = async (req, res) => {
         );
 
         const sortedOrops = sortOropByTitle(orops);
-        res.status(200).json(addVirtuals(sortedOrops));
+        res.status(200).json(sortedOrops);
     } catch (error) {
         console.log('[searchOrop] error : ', error);
         res.status(500).json('Something went wrong');
@@ -140,27 +136,23 @@ export const getTopRatedOrop = async (req, res) => {
         const topRatedOrop = await Orop.aggregate(
             addUsernamesToAggregation([
                 { $match: { 'discordOrop.ratings.1': { $exists: true } } },
-                { $project: { title: 1, discordOrop: 1, discordRating: 1 } },
+                {
+                    $addFields: {
+                        ratingsCount: { $size: '$discordOrop.ratings' },
+                        computedDiscordRating: {
+                            $round: [{ $avg: '$discordOrop.ratings.rating' }],
+                        },
+                    },
+                },
+                { $sort: { computedDiscordRating: -1, ratingsCount: -1 } },
+                { $skip: parseInt(sliceStart) || 0 },
+                { $limit: parseInt(sliceEnd) || 12 },
+                { $project: { ratingsCount: 0, computedDiscordRating: 0 } },
             ])
         );
 
-        const sortedTopRatedOrop = topRatedOrop
-            .sort((a, b) => {
-                if (
-                    a.discordOrop.ratings.length > b.discordOrop.ratings.length
-                ) {
-                    return 1;
-                } else {
-                    return -1;
-                }
-            })
-            .sort((a, b) => a?.discordRating - b?.discordRating)
-            .reverse();
-
         console.log('[getTopRateOrop] returning DISCORD TOP');
-        return res
-            .status(200)
-            .json(sortedTopRatedOrop.slice(sliceStart || 0, sliceEnd || 12));
+        return res.status(200).json(topRatedOrop);
     } catch (error) {
         res.status(500).json(
             `Something went wrong during getTopRatedOrop ${error}`
@@ -173,28 +165,25 @@ export const getOneOrop = async (req, res) => {
         const { query } = req;
         if (!query) {
             console.warn('[getOneOrop] No query param in request for FP OROP');
-            return res.status(400).json('Missing query param');
+            return res.status(400).json({ error: 'Missing query param' });
         }
         const { title, skipSearchInc } = query;
 
-        const orops = await lookupOropWithUsernames({
-            title: { $elemMatch: { $eq: title } },
-        });
+        const orop = await Orop.findOneAndUpdate(
+            { title: { $elemMatch: { $eq: title } } },
+            { $inc: { searchCount: skipSearchInc === 'true' ? 0 : 1 } },
+            { returnDocument: 'after' }
+        );
 
-        if (orops.length > 0) {
-            const orop = orops[0];
-            const newOrop = await Orop.findOneAndUpdate(
-                { _id: orop._id },
-                { $inc: { searchCount: skipSearchInc === 'true' ? 0 : 1 } }
-            );
-            return res.status(200).json(newOrop);
+        if (!orop) {
+            console.warn('[getOneOrop] No Orop found with query', query);
+            return res.status(404).json({ error: `No OROP found with query ${query.title}` });
         }
 
-        console.warn('[getOneOrop] No Orop found with query', query);
-        return res.status(404).json(`No OROP found with query ${query.title}`);
+        return res.status(200).json(orop);
     } catch (error) {
         console.warn('[getOneOrop] OROP Not found', error);
-        return res.status(404).json(`No OROP found ${error}`);
+        return res.status(500).json({ error: error.message });
     }
 };
 
@@ -232,7 +221,7 @@ export const upsertFpOrop = async (req, res) => {
                 $addToSet: { title: body.title },
                 $inc: { searchCount: 1 },
             },
-            { new: true, upsert: true }
+            { returnDocument: 'after', upsert: true }
         );
         console.log('[upsertFpOrop] Success: ', orop.title);
         return res.status(200).json(orop);
@@ -263,7 +252,7 @@ export const upsertFpOropRating = async (req, res) => {
                 $set: updateFields,
                 $addToSet: { title: title },
             },
-            { new: true, upsert: true }
+            { returnDocument: 'after', upsert: true }
         );
         return res.status(200).json(orop);
     } catch (error) {
@@ -313,7 +302,7 @@ export const upsertDiscordOrop = async (req, res) => {
             },
             {
                 arrayFilters: [{ 'elem.userId': { $eq: userId } }],
-                new: true,
+                returnDocument: 'after',
             }
         );
 
@@ -341,7 +330,7 @@ export const upsertDiscordOrop = async (req, res) => {
                 $inc: { searchCount: 1 },
                 $addToSet: { title: title },
             },
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (newRatingOrop) {
@@ -415,15 +404,13 @@ export const getAllUserRatings = async (req, res) => {
             ])
         );
 
-        const userOropsWithVirtuals = addVirtuals(userOrops);
-
         console.log(
-            userOropsWithVirtuals.length > 0
+            userOrops.length > 0
                 ? '[GetAllUserRatings] Returning ratings for'
                 : '[GetAllUserRatings] No more ratings',
             userId
         );
-        return res.status(200).json(userOropsWithVirtuals);
+        return res.status(200).json(userOrops);
     } catch (error) {
         return res.status(500).json(error.message);
     }
@@ -518,7 +505,7 @@ export const askForOrop = async (req, res) => {
                     askedBy: userId,
                 },
             },
-            { new: true }
+            { returnDocument: 'after' }
         );
         console.log(`[AskForOrop] by ${userId} for ${title}`);
         return res.status(200).json(orop);
@@ -544,8 +531,7 @@ export const getTopAskedOrop = async (req, res) => {
                 { $limit: 20 },
             ])
         );
-        const topAskedOropWithVirtuals = addVirtuals(topAskedOrop);
-        return res.status(200).json(topAskedOropWithVirtuals);
+        return res.status(200).json(topAskedOrop);
     } catch (error) {
         return res.status(500).json(error.message);
     }
@@ -557,7 +543,15 @@ export const getOneDayOneGame = async (req, res) => {
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
         const docs = await Orop.aggregate([
-            { $match: { lastOneDayOneGame: { $lt: sixMonthsAgo } } },
+            {
+                $match: {
+                    $or: [
+                        { lastOneDayOneGame: { $lt: sixMonthsAgo } },
+                        { lastOneDayOneGame: { $exists: false } },
+                        { lastOneDayOneGame: null },
+                    ],
+                },
+            },
             { $sample: { size: 1 } },
         ]);
 
@@ -594,7 +588,7 @@ export const removeReview = async (req, res) => {
             },
             {
                 arrayFilters: [{ 'elem.userId': userId }],
-                new: true,
+                returnDocument: 'after',
             }
         );
 

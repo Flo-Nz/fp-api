@@ -67,7 +67,7 @@ export const getDiscordAccount = async (req, res) => {
                     'discord.id': discordMember.user.id,
                     'discord.roles': discordMember.roles,
                 },
-                { new: true }
+                { returnDocument: 'after' }
             );
             if (!user) {
                 user = await Account.create({
@@ -146,7 +146,7 @@ export const getGoogleAccount = async (req, res) => {
                     type: 'google',
                     'google.id': id,
                 },
-                { new: true }
+                { returnDocument: 'after' }
             );
             if (!user) {
                 user = await Account.create({

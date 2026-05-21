@@ -23,12 +23,11 @@ const AccountSchema = new mongoose.Schema({
 });
 
 // Pre-save middleware to ensure userId is set from provider ID
-AccountSchema.pre('save', function (next) {
+AccountSchema.pre('save', function () {
     if (!this.userId) {
         this.userId =
             this.type === 'discord' ? this.discord?.id : this.google?.id;
     }
-    next();
 });
 
 export const Account = mongoose.model('Account', AccountSchema);

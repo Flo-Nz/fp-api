@@ -1,6 +1,6 @@
 import { deburr, get, includes, invoke, isEmpty } from 'lodash-es';
 import { Orop } from '../models/Orop.js';
-import moment from 'moment';
+import { format } from 'date-fns';
 import { youtubeClient } from '../services/youtubeClient.js';
 
 const getPlaylist = async (pageToken) => {
@@ -29,7 +29,8 @@ const findTimestamp = (title, desc) => {
 
     // if we got timestamps, the first one should be the one of the title. Transform it in seconds and return it.
     if (!isEmpty(result)) {
-        return moment.duration(`00:${result[0]}`).asSeconds();
+        const [minutes, seconds] = result[0].split(':').map(Number);
+        return minutes * 60 + seconds;
     }
 };
 
@@ -48,7 +49,7 @@ const buildFpOrop = (video, title) => {
     const timestamp = findTimestamp(title, video.snippet.description);
 
     return {
-        publishedDate: moment(video.snippet.publishedAt).format('L'),
+        publishedDate: format(new Date(video.snippet.publishedAt), 'dd/MM/yyyy'),
         videoTitle: video.snippet.title,
         thumbnail: video.snippet.thumbnails.medium.url,
         timestamp,
@@ -116,7 +117,7 @@ export const findYoutubeOrop = async (req, res) => {
                             lastYoutubeScrapping: new Date(),
                         },
                     },
-                    { new: true }
+                    { returnDocument: 'after' }
                 );
                 console.log('Youtube scrapping success !', updatedGame);
                 return res.status(200).json(updatedGame);
@@ -132,7 +133,7 @@ export const findYoutubeOrop = async (req, res) => {
                     lastYoutubeScrapping: new Date(),
                 },
             },
-            { new: true }
+            { returnDocument: 'after' }
         );
         res.status(404).json(updatedGame);
     } catch (error) {

@@ -1,6 +1,5 @@
 import { Orop } from '../models/Orop.js';
 import { lookupOropWithUsernames } from '../lib/lookupUsernames.js';
-import { addVirtuals } from '../lib/addVirtuals.js';
 import { Types } from 'mongoose';
 
 export const updateBoardgame = async (req, res) => {
@@ -64,20 +63,20 @@ export const addBoardgame = async (req, res) => {
     try {
         const { body } = req;
         if (!body.title || !Array.isArray(body.title)) {
-            return res.status(400).json('No valid title provided.');
+            return res.status(400).json({ error: 'No valid title provided.' });
         }
 
         // Convert each string in the title array to lowercase
         const loweredTitles = body.title.map((title) => title.toLowerCase());
 
-        // Check if already exists
-        for (const title of loweredTitles) {
-            const existingOrop = await Orop.find({ title });
-            if (existingOrop.length > 0) {
-                return res
-                    .status(409)
-                    .json(`Boardgame ${title} already exists.`);
-            }
+        // Check if any title already exists in one query
+        const existingOrop = await Orop.findOne({
+            title: { $in: loweredTitles },
+        });
+        if (existingOrop) {
+            return res.status(409).json({
+                error: `Boardgame "${existingOrop.title[0]}" already exists.`,
+            });
         }
 
         const newBoardgame = await Orop.create({
@@ -86,10 +85,10 @@ export const addBoardgame = async (req, res) => {
             searchCount: 1,
             status: 'pending',
         });
-        return res.status(200).json(newBoardgame);
+        return res.status(201).json(newBoardgame);
     } catch (error) {
         console.log('[addBoardgame] Error : ', error);
-        res.status(500).json(error.message);
+        res.status(500).json({ error: error.message });
     }
 };
 
@@ -164,7 +163,7 @@ export const getOneBoardgame = async (req, res) => {
             },
         };
 
-        return res.json(addVirtuals([response])[0]);
+        return res.json(response);
     } catch (error) {
         return res.status(500).json({ message: error.message });
     }

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Orop } from '../models/Orop.js';
 import { Account } from '../models/Account.js';
+import { discordRatingStage } from './addVirtuals.js';
 
 export const lookupOropWithUsernames = async (query, options = {}) => {
     const { limit, skip, sort } = options;
@@ -40,7 +41,13 @@ export const lookupOropWithUsernames = async (query, options = {}) => {
 
     // Map the results
     const oropsWithUserDetails = orops.map((orop) => {
-        const oropObj = { ...orop }; // Create a shallow copy to avoid modifying the original
+        const oropObj = { ...orop };
+        // Compute discordRating
+        const ratings = oropObj.discordOrop?.ratings;
+        oropObj.discordRating = ratings?.length > 0
+            ? Math.round(ratings.reduce((acc, r) => acc + (r.rating || 0), 0) / ratings.length)
+            : null;
+
         if (oropObj.discordOrop?.ratings) {
             oropObj.discordOrop.ratings = oropObj.discordOrop.ratings.map(
                 (rating) => ({
@@ -65,6 +72,7 @@ export const lookupOropWithUsernames = async (query, options = {}) => {
 export const addUsernamesToAggregation = (pipeline = []) => {
     return [
         ...pipeline,
+        discordRatingStage,
         { $addFields: { id: { $toString: '$_id' } } },
         {
             $lookup: {

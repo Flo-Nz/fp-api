@@ -1,2 +1,9 @@
-.env
 node_modules/
+.env
+.vscode/
+.idea/
+.agents/
+.kilocode/
+.kiro/
+skills-lock.json
+*.log

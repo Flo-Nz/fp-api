@@ -77,32 +77,32 @@ const OropSchema = new mongoose.Schema(
     }
 );
 
-OropSchema.pre('save', function (next) {
-    // Set lastEditedAt for new ratings
-    if (this.fpOrop?.rating) {
+OropSchema.pre('save', function () {
+    // Set lastEditedAt only for new/modified ratings
+    if (this.fpOrop?.rating && this.isModified('fpOrop.rating')) {
         this.fpOrop.lastEditedAt = new Date();
     }
-    if (this.discordOrop?.ratings?.length > 0) {
-        this.discordOrop.ratings = this.discordOrop.ratings.map((rating) => ({
-            ...rating,
-            lastEditedAt: new Date(),
-        }));
+    if (this.isModified('discordOrop.ratings') && this.discordOrop?.ratings?.length > 0) {
+        const lastRating = this.discordOrop.ratings[this.discordOrop.ratings.length - 1];
+        if (!lastRating.lastEditedAt) {
+            lastRating.lastEditedAt = new Date();
+        }
     }
 
-    // Existing logic
+    // Recalculate discordRating
     if (this.discordOrop && this.discordOrop.ratings) {
         this.discordRating =
             round(meanBy(this.discordOrop.ratings, 'rating')) || null;
     }
+    // Normalize titles to lowercase
     if (this.title) {
         this.title = this.title.map((t) =>
             typeof t === 'string' ? t.toLowerCase() : t
         );
     }
-    next();
 });
 
-OropSchema.pre('findOneAndUpdate', function (next) {
+OropSchema.pre('findOneAndUpdate', function () {
     const update = this.getUpdate();
 
     // Set lastEditedAt when updating ratings
@@ -134,7 +134,13 @@ OropSchema.pre('findOneAndUpdate', function (next) {
                 ? update.$addToSet.title.toLowerCase()
                 : update.$addToSet.title;
     }
-    next();
 });
+
+// Indexes for common queries
+OropSchema.index({ title: 1 });
+OropSchema.index({ 'discordOrop.ratings.userId': 1 });
+OropSchema.index({ searchCount: -1 });
+OropSchema.index({ lastOneDayOneGame: 1 });
+OropSchema.index({ status: 1 });
 
 export const Orop = mongoose.model('Orop', OropSchema);
