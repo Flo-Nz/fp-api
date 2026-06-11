@@ -201,3 +201,32 @@ export const getUserInformations = async (req, res) => {
             .json(`[getUserInformations] Something went wrong`);
     }
 };
+
+export const verifyJwt = async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json('Missing token in request body');
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const { apikey, id } = decoded;
+
+        if (!apikey || !id) {
+            return res.status(400).json('Invalid token payload');
+        }
+
+        // Verify the account still exists
+        const account = await Account.findOne({ apikey });
+        if (!account) {
+            return res.status(401).json('Account not found');
+        }
+
+        return res.status(200).json({ apikey });
+    } catch (error) {
+        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+            return res.status(401).json('Invalid or expired token');
+        }
+        return res.status(500).json('Token verification failed');
+    }
+};

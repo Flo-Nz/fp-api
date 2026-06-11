@@ -1,5 +1,26 @@
 import { Router } from 'express';
 import {
+    validateApiKey,
+    validateScribeAccount,
+    validateServiceApiKey,
+} from './services/validateApiKey.js';
+import {
+    getDiscordAccount,
+    getGoogleAccount,
+    getUserInformations,
+    verifyJwt,
+} from './controllers/authController.js';
+import {
+    addBoardgame,
+    deleteBoardgame,
+    getPendingBoardgameList,
+    updateBoardgame,
+    validateBoardgame,
+    getOneBoardgame,
+} from './controllers/boardgameController.js';
+import { findYoutubeOrop } from './controllers/youtubeController.js';
+import { getBggCover } from './controllers/bggController.js';
+import {
     askForOrop,
     getAllUserRatings,
     getOneDayOneGame,
@@ -14,26 +35,8 @@ import {
     upsertFpOrop,
     upsertFpOropRating,
     removeReview,
+    postUnifiedRating,
 } from './controllers/oropController.js';
-import {
-    validateApiKey,
-    validateScribeAccount,
-    validateServiceApiKey,
-} from './services/validateApiKey.js';
-import {
-    getDiscordAccount,
-    getGoogleAccount,
-    getUserInformations,
-} from './controllers/authController.js';
-import {
-    addBoardgame,
-    deleteBoardgame,
-    getPendingBoardgameList,
-    updateBoardgame,
-    validateBoardgame,
-    getOneBoardgame,
-} from './controllers/boardgameController.js';
-import { findYoutubeOrop } from './controllers/youtubeController.js';
 
 const router = Router();
 
@@ -59,6 +62,7 @@ router.get(
 );
 router.get('/boardgame/:id/validate', validateScribeAccount, validateBoardgame);
 router.get('/boardgame/:id/youtube', validateApiKey, findYoutubeOrop);
+router.get('/boardgame/:id/cover', validateApiKey, getBggCover);
 router.get('/boardgame/:id', validateApiKey, getOneBoardgame);
 router.put('/boardgame/:id', validateScribeAccount, updateBoardgame);
 router.delete('/boardgame/:id', validateScribeAccount, deleteBoardgame);
@@ -80,5 +84,9 @@ router.get('/one-day-one-game', validateServiceApiKey, getOneDayOneGame);
 router.get('/discord/login', getDiscordAccount);
 router.post('/google/login', getGoogleAccount);
 router.get('/user/infos', getUserInformations);
+router.post('/auth/verify-jwt', verifyJwt);
+
+// Unified rating endpoint (frontend uses this instead of choosing between fporop/discordorop)
+router.post('/rating', validateApiKey, postUnifiedRating);
 
 export default router;

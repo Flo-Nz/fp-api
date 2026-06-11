@@ -1,54 +1,134 @@
 import { get, keys, map, omit } from 'lodash-es';
 import { Orop } from '../models/Orop.js';
+import { Account } from '../models/Account.js';
 import { isValidFpOrop } from '../services/validateOrop.js';
 import { sortOropByTitle } from '../lib/sort.js';
+import { escapeRegex } from '../lib/escapeRegex.js';
 import {
     addUsernamesToAggregation,
 } from '../lib/lookupUsernames.js';
 
 export const getPaginatedOrop = async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1; // Default to page 1 if not provided
+        const page = parseInt(req.query.page) || 1;
         const limit =
             (parseInt(req.query.limit) > 24 ? 24 : parseInt(req.query.limit)) ||
-            24; // Default to 24 documents per page if not provided
-        const oropOnly = req.query.oropOnly === 'true' ? true : false;
+            24;
+        const oropOnly = req.query.oropOnly === 'true';
         const skip = (page - 1) * limit;
 
+        // Rating filters
+        const fpRating = parseInt(req.query.fpRating) || null;
+        const discordRating = parseInt(req.query.discordRating) || null;
+
+        // Build match conditions
+        const matchConditions = [];
+
+        if (oropOnly) {
+            matchConditions.push({
+                'fpOrop.youtubeUrl': { $exists: true, $ne: '' },
+            });
+        }
+
+        if (fpRating && fpRating >= 1 && fpRating <= 5) {
+            matchConditions.push({ 'fpOrop.rating': fpRating });
+        }
+
         const basePipeline = [
+            ...(matchConditions.length > 0
+                ? [{ $match: { $and: matchConditions } }]
+                : []),
             {
                 $addFields: {
                     firstTitleElement: { $arrayElemAt: ['$title', 0] },
+                    computedDiscordRating: {
+                        $cond: {
+                            if: {
+                                $and: [
+                                    { $isArray: '$discordOrop.ratings' },
+                                    {
+                                        $gt: [
+                                            { $size: '$discordOrop.ratings' },
+                                            0,
+                                        ],
+                                    },
+                                ],
+                            },
+                            then: {
+                                $round: [
+                                    { $avg: '$discordOrop.ratings.rating' },
+                                ],
+                            },
+                            else: null,
+                        },
+                    },
                 },
             },
+            ...(discordRating && discordRating >= 1 && discordRating <= 5
+                ? [{ $match: { computedDiscordRating: discordRating } }]
+                : []),
             {
                 $addFields: {
                     firstTitleElementLower: { $toLower: '$firstTitleElement' },
                 },
             },
-            ...(oropOnly
-                ? [
-                      {
-                          $match: {
-                              'fpOrop.youtubeUrl': { $exists: true, $ne: '' },
-                          },
-                      },
-                  ]
-                : []),
             { $sort: { firstTitleElementLower: 1 } },
             { $skip: skip },
             { $limit: limit },
+            { $project: { computedDiscordRating: 0 } },
         ];
 
         const allOrop = await Orop.aggregate(
             addUsernamesToAggregation(basePipeline)
         );
 
-        const totalDocuments = oropOnly
-            ? await Orop.countDocuments({
-                  'fpOrop.youtubeUrl': { $exists: true, $ne: '' },
-              })
-            : await Orop.countDocuments(); // Get the total number of documents
+        // Count with same filters (without skip/limit)
+        const countPipeline = [
+            ...(matchConditions.length > 0
+                ? [{ $match: { $and: matchConditions } }]
+                : []),
+            ...(discordRating && discordRating >= 1 && discordRating <= 5
+                ? [
+                      {
+                          $addFields: {
+                              computedDiscordRating: {
+                                  $cond: {
+                                      if: {
+                                          $and: [
+                                              {
+                                                  $isArray:
+                                                      '$discordOrop.ratings',
+                                              },
+                                              {
+                                                  $gt: [
+                                                      {
+                                                          $size: '$discordOrop.ratings',
+                                                      },
+                                                      0,
+                                                  ],
+                                              },
+                                          ],
+                                      },
+                                      then: {
+                                          $round: [
+                                              {
+                                                  $avg: '$discordOrop.ratings.rating',
+                                              },
+                                          ],
+                                      },
+                                      else: null,
+                                  },
+                              },
+                          },
+                      },
+                      { $match: { computedDiscordRating: discordRating } },
+                  ]
+                : []),
+            { $count: 'total' },
+        ];
+
+        const countResult = await Orop.aggregate(countPipeline);
+        const totalDocuments = countResult[0]?.total || 0;
 
         return res.status(200).json({
             data: allOrop,
@@ -66,25 +146,62 @@ export const searchOrop = async (req, res) => {
     try {
         const { title, oropOnly } = req.query;
         if (!title) {
-            res.status(400).json('You did not provide a title query parameter');
+            return res.status(400).json('You did not provide a title query parameter');
         }
-        const filter = {
-            title: { $regex: title, $options: 'i' },
+
+        // Use Atlas Search autocomplete for fuzzy/partial matching
+        const searchStage = {
+            $search: {
+                index: 'title_search',
+                autocomplete: {
+                    query: title,
+                    path: 'title',
+                    fuzzy: {
+                        maxEdits: 1,
+                        prefixLength: 2,
+                    },
+                },
+            },
         };
 
-        if (oropOnly === 'true') {
-            filter['fpOrop.youtubeUrl'] = { $exists: true, $ne: '' };
-        }
+        const pipeline = [
+            searchStage,
+            ...(oropOnly === 'true'
+                ? [
+                      {
+                          $match: {
+                              'fpOrop.youtubeUrl': { $exists: true, $ne: '' },
+                          },
+                      },
+                  ]
+                : []),
+            { $limit: 24 },
+        ];
 
         const orops = await Orop.aggregate(
-            addUsernamesToAggregation([{ $match: filter }, { $limit: 24 }])
+            addUsernamesToAggregation(pipeline)
         );
 
-        const sortedOrops = sortOropByTitle(orops);
-        res.status(200).json(sortedOrops);
+        res.status(200).json(orops);
     } catch (error) {
-        console.log('[searchOrop] error : ', error);
-        res.status(500).json('Something went wrong');
+        console.log('[searchOrop] Atlas Search error, falling back to regex:', error.message);
+        // Fallback to regex search if Atlas Search fails
+        try {
+            const { title, oropOnly } = req.query;
+            const filter = {
+                title: { $regex: escapeRegex(title), $options: 'i' },
+            };
+            if (oropOnly === 'true') {
+                filter['fpOrop.youtubeUrl'] = { $exists: true, $ne: '' };
+            }
+            const orops = await Orop.aggregate(
+                addUsernamesToAggregation([{ $match: filter }, { $limit: 24 }])
+            );
+            const sortedOrops = sortOropByTitle(orops);
+            return res.status(200).json(sortedOrops);
+        } catch (fallbackError) {
+            return res.status(500).json('Something went wrong');
+        }
     }
 };
 
@@ -601,6 +718,114 @@ export const removeReview = async (req, res) => {
         );
         return res.status(200).json('Review removed successfully');
     } catch (error) {
+        return res.status(500).json(error.message);
+    }
+};
+
+/**
+ * Unified rating endpoint — the API decides whether this is a FP rating
+ * or a Discord community rating based on the authenticated account's apikey.
+ * This removes the need for the frontend to know about YOEL_API_KEY.
+ */
+export const postUnifiedRating = async (req, res) => {
+    try {
+        const { apikey } = req.headers;
+        const { title, rating, review } = req.body;
+
+        if (!title || !rating) {
+            return res.status(400).json('Missing title or rating');
+        }
+
+        const account = await Account.findOne({ apikey });
+        if (!account) {
+            return res.status(401).json('Account not found');
+        }
+
+        const isFpAccount = account.apikey === process.env.FP_OWNER_API_KEY;
+
+        if (isFpAccount) {
+            // FirstPlayer official rating
+            const updateFields = {
+                'fpOrop.rating': parseInt(rating),
+            };
+            if (review) {
+                updateFields['fpOrop.review'] = review;
+            }
+
+            const orop = await Orop.findOneAndUpdate(
+                { title: { $elemMatch: { $eq: title } } },
+                {
+                    $set: updateFields,
+                    $addToSet: { title: title },
+                },
+                { returnDocument: 'after', upsert: true }
+            );
+            return res.status(200).json(orop);
+        }
+
+        // Discord community rating
+        const userId =
+            account.type === 'discord'
+                ? account.discord?.id
+                : account.google?.id;
+
+        // Try to update existing rating
+        const updateFields = {
+            'discordOrop.ratings.$[elem].rating': rating,
+        };
+        if (review) {
+            updateFields['discordOrop.ratings.$[elem].review'] = review;
+        }
+
+        const orop = await Orop.findOneAndUpdate(
+            {
+                title: { $elemMatch: { $eq: title } },
+                'discordOrop.ratings.userId': userId,
+            },
+            {
+                $set: updateFields,
+            },
+            {
+                arrayFilters: [{ 'elem.userId': { $eq: userId } }],
+                returnDocument: 'after',
+            }
+        );
+
+        if (orop) {
+            return res.status(200).json({ orop, updated: true });
+        }
+
+        // Create new rating
+        const pushFields = { userId, rating };
+        if (review) {
+            pushFields.review = review;
+        }
+
+        const newRatingOrop = await Orop.findOneAndUpdate(
+            { title: { $elemMatch: { $eq: title } } },
+            {
+                $push: { 'discordOrop.ratings': pushFields },
+                $addToSet: { title: title },
+            },
+            { returnDocument: 'after' }
+        );
+
+        if (newRatingOrop) {
+            return res.status(200).json({ orop: newRatingOrop, updated: false });
+        }
+
+        // Create new OROP with rating
+        const newOrop = await Orop.create({
+            title: [title],
+            fpOrop: {},
+            discordOrop: { ratings: [pushFields] },
+            searchCount: 0,
+            status: 'pending',
+        });
+
+        return res.status(200).json({ orop: newOrop, updated: false, created: true });
+    } catch (error) {
+        console.error('[postUnifiedRating] Error:', error.message);
         return res.status(500).json(error.message);
     }
 };

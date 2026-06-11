@@ -53,6 +53,9 @@ const OropSchema = new mongoose.Schema(
         lastUpdatedBy: { type: String },
         lastYoutubeScrapping: { type: Date },
         status: { type: String },
+        bggId: { type: Number },
+        coverUrl: { type: String },
+        thumbnailUrl: { type: String },
     },
     {
         virtuals: {

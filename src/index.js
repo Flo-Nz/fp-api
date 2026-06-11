@@ -1,16 +1,42 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import rateLimit from 'express-rate-limit';
 import router from './router.js';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 
 export const port = process.env.PORT || 3000;
 
 const app = express();
 
+// Rate limiting — 100 requests per minute per IP
+const limiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 100,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+});
+
+// Auth endpoints get stricter limits (20 req/min)
+const authLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'Too many authentication attempts, please try again later.' },
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(limiter);
+
+// Stricter rate limiting on auth routes
+app.use('/discord/login', authLimiter);
+app.use('/google/login', authLimiter);
+app.use('/auth/verify-jwt', authLimiter);
 
 // Router
 app.use('/', router);
