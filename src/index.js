@@ -17,6 +17,7 @@ const limiter = rateLimit({
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },
+    skip: (req) => req.method === 'OPTIONS',
 });
 
 // Auth endpoints get stricter limits (20 req/min)
