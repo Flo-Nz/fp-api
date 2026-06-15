@@ -74,6 +74,10 @@ export const fetchBggCover = async (title) => {
         const thing = await getBggThing(bggId);
         return thing;
     } catch (error) {
+        // Propagate rate limit errors so callers can handle them
+        if (error.response?.status === 429) {
+            throw error;
+        }
         console.error(`[BGG] Failed to fetch cover for "${title}":`, error.message);
         return null;
     }

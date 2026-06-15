@@ -829,3 +829,44 @@ export const postUnifiedRating = async (req, res) => {
         return res.status(500).json(error.message);
     }
 };
+
+export const getLatestReviews = async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 6, 20);
+
+        const reviews = await Orop.aggregate([
+            { $match: { 'discordOrop.ratings.review': { $exists: true } } },
+            { $unwind: '$discordOrop.ratings' },
+            { $match: { 'discordOrop.ratings.review': { $exists: true, $ne: '' } } },
+            { $sort: { 'discordOrop.ratings.lastEditedAt': -1 } },
+            { $limit: limit },
+            {
+                $lookup: {
+                    from: 'accounts',
+                    localField: 'discordOrop.ratings.userId',
+                    foreignField: 'userId',
+                    as: 'userInfo',
+                },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    title: 1,
+                    coverUrl: 1,
+                    thumbnailUrl: 1,
+                    review: '$discordOrop.ratings.review',
+                    rating: '$discordOrop.ratings.rating',
+                    lastEditedAt: '$discordOrop.ratings.lastEditedAt',
+                    userId: '$discordOrop.ratings.userId',
+                    username: { $arrayElemAt: ['$userInfo.username', 0] },
+                    avatar: { $arrayElemAt: ['$userInfo.avatar', 0] },
+                },
+            },
+        ]);
+
+        return res.status(200).json(reviews);
+    } catch (error) {
+        console.error('[getLatestReviews] Error:', error.message);
+        return res.status(500).json(error.message);
+    }
+};

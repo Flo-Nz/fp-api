@@ -23,6 +23,7 @@ import { getBggCover } from './controllers/bggController.js';
 import {
     askForOrop,
     getAllUserRatings,
+    getLatestReviews,
     getOneDayOneGame,
     getOneOrop,
     getPaginatedOrop,
@@ -51,6 +52,7 @@ router.get('/orop/all', validateApiKey, getPaginatedOrop);
 router.get('/orop/top/searched', validateApiKey, getTopSearchedOrop);
 router.get('/orop/top/rated', validateApiKey, getTopRatedOrop);
 router.get('/orop/top/asked', validateApiKey, getTopAskedOrop);
+router.get('/orop/reviews/latest', validateApiKey, getLatestReviews);
 
 // Interact with boardgames / orops
 router.post('/orop/ask', validateApiKey, askForOrop);
