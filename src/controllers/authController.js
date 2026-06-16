@@ -39,23 +39,32 @@ export const getDiscordAccount = async (req, res) => {
             const discordUser = await userResult.body.json();
             const userAvatar = `https://cdn.discordapp.com/avatars/${discordUser?.id}/${discordUser?.avatar}.png`;
 
-            const fpMemberResult = await request(
-                'https://discord.com/api/users/@me/guilds/933486333756846101/member',
-                {
-                    headers: {
-                        authorization: `${oauthData.token_type} ${oauthData.access_token}`,
-                    },
+            // Try to get guild membership (optional — user might not be in the FP server)
+            let roles = [];
+            try {
+                const fpMemberResult = await request(
+                    'https://discord.com/api/users/@me/guilds/933486333756846101/member',
+                    {
+                        headers: {
+                            authorization: `${oauthData.token_type} ${oauthData.access_token}`,
+                        },
+                    }
+                );
+                const discordMember = await fpMemberResult.body.json();
+                if (discordMember?.roles) {
+                    roles = discordMember.roles;
                 }
-            );
-            const discordMember = await fpMemberResult.body.json();
+            } catch {
+                // Not a member of the guild — that's fine
+            }
 
             let user;
             user = await Account.findOneAndUpdate(
                 {
-                    userId: discordMember.user.id,
+                    userId: discordUser.id,
                 },
                 {
-                    username: discordMember.user.username,
+                    username: discordUser.username,
                     avatar: userAvatar,
                     'discord.access_token': oauthData.access_token,
                     'discord.refresh_token': oauthData.refresh_token,
@@ -64,21 +73,21 @@ export const getDiscordAccount = async (req, res) => {
                         oauthData.expires_in
                     ),
                     type: 'discord',
-                    'discord.id': discordMember.user.id,
-                    'discord.roles': discordMember.roles,
+                    'discord.id': discordUser.id,
+                    'discord.roles': roles,
                 },
                 { returnDocument: 'after' }
             );
             if (!user) {
                 user = await Account.create({
-                    userId: discordMember.user.id,
-                    username: discordMember.user.username,
+                    userId: discordUser.id,
+                    username: discordUser.username,
                     apikey: uuid(),
                     type: 'discord',
                     avatar: userAvatar,
                     discord: {
-                        id: discordMember.user.id,
-                        roles: discordMember.roles,
+                        id: discordUser.id,
+                        roles,
                         access_token: oauthData.access_token,
                         refresh_token: oauthData.refresh_token,
                         expires_at: addMilliseconds(
