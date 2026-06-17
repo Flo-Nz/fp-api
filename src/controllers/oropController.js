@@ -26,7 +26,7 @@ export const getPaginatedOrop = async (req, res) => {
 
         if (oropOnly) {
             matchConditions.push({
-                'fpOrop.youtubeUrl': { $exists: true, $ne: '' },
+                'fpOrop.youtubeUrl': { $exists: true, $nin: [null, ''] },
             });
         }
 
@@ -170,7 +170,7 @@ export const searchOrop = async (req, res) => {
                 ? [
                       {
                           $match: {
-                              'fpOrop.youtubeUrl': { $exists: true, $ne: '' },
+                              'fpOrop.youtubeUrl': { $exists: true, $nin: [null, ''] },
                           },
                       },
                   ]
@@ -192,7 +192,7 @@ export const searchOrop = async (req, res) => {
                 title: { $regex: escapeRegex(title), $options: 'i' },
             };
             if (oropOnly === 'true') {
-                filter['fpOrop.youtubeUrl'] = { $exists: true, $ne: '' };
+                filter['fpOrop.youtubeUrl'] = { $exists: true, $nin: [null, ''] };
             }
             const orops = await Orop.aggregate(
                 addUsernamesToAggregation([{ $match: filter }, { $limit: 24 }])
@@ -210,7 +210,7 @@ export const getTopSearchedOrop = async (req, res) => {
         const { limit, withVideo } = req.query;
         const query =
             withVideo === 'true'
-                ? { 'fpOrop.youtubeUrl': { $exists: true } }
+                ? { 'fpOrop.youtubeUrl': { $exists: true, $nin: [null, ''] } }
                 : {};
         const topSearchedOrop = await Orop.aggregate([
             { $match: query },
