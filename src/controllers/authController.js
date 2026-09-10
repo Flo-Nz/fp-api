@@ -1,4 +1,4 @@
-import { request } from 'undici';
+import axios from 'axios';
 import jwt from 'jsonwebtoken';
 import { Account } from '../models/Account.js';
 import { v4 as uuid } from 'uuid';
@@ -10,25 +10,24 @@ export const getDiscordAccount = async (req, res) => {
     try {
         const { code } = req.query;
         if (code) {
-            const tokenResponseData = await request(
+            const tokenResponse = await axios.post(
                 'https://discord.com/api/oauth2/token',
+                new URLSearchParams({
+                    client_id: process.env.CLIENT_ID,
+                    client_secret: process.env.CLIENT_SECRET,
+                    code,
+                    grant_type: 'authorization_code',
+                    redirect_uri: process.env.DISCORD_REDIRECT_URI,
+                    scope: 'identify guilds.members.read',
+                }).toString(),
                 {
-                    method: 'POST',
-                    body: new URLSearchParams({
-                        client_id: process.env.CLIENT_ID,
-                        client_secret: process.env.CLIENT_SECRET,
-                        code,
-                        grant_type: 'authorization_code',
-                        redirect_uri: process.env.DISCORD_REDIRECT_URI,
-                        scope: 'identify guilds.members.read',
-                    }).toString(),
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
                 }
             );
-            const oauthData = await tokenResponseData.body.json();
-            const userResult = await request(
+            const oauthData = tokenResponse.data;
+            const userResult = await axios.get(
                 'https://discord.com/api/users/@me',
                 {
                     headers: {
@@ -36,13 +35,13 @@ export const getDiscordAccount = async (req, res) => {
                     },
                 }
             );
-            const discordUser = await userResult.body.json();
+            const discordUser = userResult.data;
             const userAvatar = `https://cdn.discordapp.com/avatars/${discordUser?.id}/${discordUser?.avatar}.png`;
 
             // Try to get guild membership (optional — user might not be in the FP server)
             let roles = [];
             try {
-                const fpMemberResult = await request(
+                const fpMemberResult = await axios.get(
                     'https://discord.com/api/users/@me/guilds/933486333756846101/member',
                     {
                         headers: {
@@ -50,7 +49,7 @@ export const getDiscordAccount = async (req, res) => {
                         },
                     }
                 );
-                const discordMember = await fpMemberResult.body.json();
+                const discordMember = fpMemberResult.data;
                 if (discordMember?.roles) {
                     roles = discordMember.roles;
                 }
