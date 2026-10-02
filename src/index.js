@@ -10,6 +10,11 @@ export const port = process.env.PORT || 3000;
 
 const app = express();
 
+// L'app tourne derrière un reverse proxy (1 hop) : sans ça, Express ne fait
+// pas confiance à X-Forwarded-For et express-rate-limit voit tout le trafic
+// comme une seule IP (ou plante avec ERR_ERL_UNEXPECTED_X_FORWARDED_FOR).
+app.set('trust proxy', 1);
+
 // Rate limiting — 100 requests per minute per IP
 const limiter = rateLimit({
     windowMs: 60 * 1000,
